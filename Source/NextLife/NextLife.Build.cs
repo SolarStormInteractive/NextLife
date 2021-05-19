@@ -5,9 +5,6 @@ using System.IO;
 
 public class NextLife : ModuleRules
 {
-	private string BinariesPath => Path.GetFullPath(Path.Combine(ModuleDirectory, "../../Binaries/"));
-	private string PluginsPath => Path.GetFullPath(Path.Combine(ModuleDirectory, "../../../"));
-
 	public NextLife(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
