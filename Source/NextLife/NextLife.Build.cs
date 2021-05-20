@@ -10,7 +10,7 @@ public class NextLife : ModuleRules
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		// Disable for Non-Developer builds
-		//OptimizeCode = CodeOptimization.Never;
+		OptimizeCode = CodeOptimization.Never;
 
         PublicDependencyModuleNames.AddRange(
 			new string[] {
