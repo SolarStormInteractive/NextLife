@@ -6,6 +6,7 @@
 #include "EventSets/NLGeneralEvents.h"
 #include "EventSets/NLInflictionEvents.h"
 #include "EventSets/NLSensingEvents.h"
+#include "EventSets/NLMovementEvents.h"
 
 #include "NLBehavior.generated.h"
 
@@ -21,6 +22,7 @@ class NEXTLIFE_API UNLBehavior : public UObject
 							   , public INLGeneralEvents
 							   , public INLInflictionEvents
 							   , public INLSensingEvents
+							   , public INLMovementEvents
 {
     GENERATED_BODY()
 public:

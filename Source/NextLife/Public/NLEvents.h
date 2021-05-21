@@ -19,6 +19,8 @@ enum class ENLEventRequest : uint8
 	SUSPEND,
 	// Request the action be done (Applies only to the action receiving the event)
 	DONE,
+	// 
+	TAKE_OVER,
 };
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -28,8 +30,8 @@ enum class ENLEventRequest : uint8
 UENUM(BlueprintType)
 enum class ENLEventRequestPriority : uint8
 {
-	// No priority
-	NONE UMETA(Hidden),
+	// No priority. Using this as a request priority basically means ignore this request because TRY is the default request priority.
+	NONE,
 	// Try to accomplish this request
 	TRY,
 	// Try harder to accomplish this request

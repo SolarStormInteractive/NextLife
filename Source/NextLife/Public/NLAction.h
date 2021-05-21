@@ -91,6 +91,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NextLife|Action")
 	TSubclassOf<UNLActionPayload> PayloadClass;
 
+	// This action will only be sustainable IF the sustain request is higher than this priority
+	// If a sustain event is dropped because of this, a verbose log message will be thrown.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NextLife|Action")
+	ENLEventRequestPriority SustainPriority;
+
 	// Gets the pawn which is being controlled by the AI controller which is running NextLife as the AI brain.
 	// If you are getting the pawn owner to cast it to a specific class to get information, perhaps consider using a blackboard instead.
 	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
@@ -109,6 +114,14 @@ public:
 	// Passing information to an AI through a blackboard can generalize your AI routines to be usable by many different pawn types.
 	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
 	class UBlackboardComponent* GetBlackboard() const;
+
+	// Adds a sub action and calls OnStart
+	UFUNCTION(BlueprintCallable, Category = "NextLife|Action")
+	void AddSubAction(TSubclassOf<UNLAction> subActionClass, UNLActionPayload* payload) {}
+
+	// Removes a sub action and calls OnEnd
+	UFUNCTION(BlueprintCallable, Category = "NextLife|Action")
+	void RemoveSubAction(TSubclassOf<UNLAction> subActionClass) {}
 
 	//-----------------------------------------------------------------------------------------
 	/**
@@ -201,6 +214,7 @@ public:
 	}
 
 	// Return response to request a change to another action
+	// If this action is burried under other actions, ChangeTo will happen once this action becomes the active action again.
 	UFUNCTION(BlueprintPure, Category = "NextLife|Event Response")
 	static FNLEventResponse TryChangeTo(TSubclassOf<class UNLAction> action, UNLActionPayload* payload, const ENLEventRequestPriority priority = ENLEventRequestPriority::TRY, const FString& reason = TEXT(""))
 	{
@@ -208,6 +222,7 @@ public:
 	}
 
 	// Return response to request a suspension to another action
+	// Suspends will occur even if this action is not active. The new action will be pushed to the top of the stack.
 	UFUNCTION(BlueprintPure, Category = "NextLife|Event Response")
 	static FNLEventResponse TrySuspendFor(TSubclassOf<class UNLAction> action, UNLActionPayload* payload, const ENLEventRequestPriority priority = ENLEventRequestPriority::TRY, const FString& reason = TEXT(""))
 	{
@@ -215,6 +230,7 @@ public:
 	}
 
 	// Return response to request this action be done because of this event
+	// If this action is burried under other actions, Done will happen once this action becomes the active action again.
 	UFUNCTION(BlueprintPure, Category = "NextLife|Event Response")
 	static FNLEventResponse TryDone(TSubclassOf<class UNLAction> action, const ENLEventRequestPriority priority = ENLEventRequestPriority::TRY, const FString& reason = TEXT(""))
 	{
@@ -230,8 +246,13 @@ protected:
 	UPROPERTY()
 	UNLAction* ChildAction;
 
+	// Actions which run along side us. Can be useful for creating a base action with smaller sub actions.
+	// Sub actions do not accept events.
+	UPROPERTY()
+	TArray<UNLAction*> SubActions;
+
 	// The response caused by an event in this action
-	// Can be superseeded by other responses of a higher priority
+	// Can be superseeded by other action event responses of a higher priority
 	UPROPERTY()
 	FNLEventResponse EventResponse;
 };

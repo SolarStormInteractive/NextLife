@@ -4,10 +4,6 @@
 
 #include "NLBehavior.h"
 
-// Event Sets
-#include "EventSets/NLSensingEvents.h"
-#include "EventSets/NLInflictionEvents.h"
-
 #include "NLHumanoidBehavior.generated.h"
 
 /**

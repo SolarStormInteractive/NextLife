@@ -11,6 +11,7 @@
 /**
 */
 UNLAction::UNLAction()
+	: SustainPriority(ENLEventRequestPriority::NONE)
 {
 
 }
