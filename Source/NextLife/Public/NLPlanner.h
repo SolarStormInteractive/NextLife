@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "NextLife.h"
 #include "NLPlanner.generated.h"
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -17,9 +16,9 @@ public:
     UNLPlanner();
 
     // Called when determining if a NextLife AI should be part of this plan or filtered out
-    UFUNCTION(BlueprintNativeEvent, Category="NextLife|Planner")
-    bool FilterForPlan(TScriptInterface<INextLife>& nextlifeToFilter);
-    virtual bool FilterForPlan_Implementation(TScriptInterface<INextLife>& nextlifeToFilter) { return false; }
+    //UFUNCTION(BlueprintNativeEvent, Category="NextLife|Planner")
+    //bool FilterForPlan(TScriptInterface<INextLife>& nextlifeToFilter);
+    //virtual bool FilterForPlan_Implementation(TScriptInterface<INextLife>& nextlifeToFilter) { return false; }
 };
 
 //---------------------------------------------------------------------------------------------------------------------

@@ -17,6 +17,7 @@ public class NextLife : ModuleRules
 				"Core",
                 "CoreUObject",
                 "Engine",
+                "AIModule",
 			}
 		);
 

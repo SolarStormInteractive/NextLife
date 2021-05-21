@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "NextLife.h"
+//#include "NextLife.h"
 #include "NLInflictionEvents.generated.h"
 
-UENUM(BlueprintType, DisplayName = "NextLife Damage Type")
+/*UENUM(BlueprintType, DisplayName = "NextLife Damage Type")
 enum class ENLDamageType : uint8
 {
     // Damage from a point
@@ -92,7 +92,7 @@ public:
 	// Normal for hit
 	UPROPERTY(BlueprintReadWrite, Category = "NextLife|DamageDefinition")
 	FVector ImpactNormal;
-};
+};*/
 
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -113,8 +113,11 @@ class NEXTLIFE_API INLInflictionEvents
 public:
     GENERATED_BODY()
 
+	
+    /*
     // Events for infliction upon a NextLife AI
     UFUNCTION(BlueprintNativeEvent, Category="NextLife|InflictionEvents")
     void Infliction_Injured(TScriptInterface<INextLife>& inflictor, const FNLDamageDefinition& damageDefinition);
     virtual void Infliction_Injured_Implementation(TScriptInterface<INextLife>& inflictor, const FNLDamageDefinition& damageDefinition) {}
+    */
 };
