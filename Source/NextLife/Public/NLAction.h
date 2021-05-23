@@ -86,15 +86,62 @@ class NEXTLIFE_API UNLAction : public UObject
     GENERATED_BODY()
 public:
     UNLAction();
-	
+
+	// Behaviors control us
+	friend class UNLBehavior;
+
+protected:
+
 	// The type of payload expected by this action
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NextLife|Action")
 	TSubclassOf<UNLActionPayload> PayloadClass;
 
-	// This action will only be sustainable IF the sustain request is higher than this priority
-	// If a sustain event is dropped because of this, a verbose log message will be thrown.
+	// This action will only be suspendable from an event IF the suspend request is higher than this priority.
+	// If a suspend event is dropped because of this, a verbose log message will be thrown.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NextLife|Action")
-	ENLEventRequestPriority SustainPriority;
+	ENLEventRequestPriority SuspendPriority;
+
+	/**
+	* Starts this action and sets its previous action pointer.
+	* This could start a new action to immediately be started which will be reflected in the result.
+	*/
+	FNLActionResult InvokeOnStart(const UNLActionPayload* payload);
+
+	/**
+	 * The primary action update call steps (each step could occur over multiple frames depending changes in state):
+	 * 1 If head action has not started, runs the Start() call on it
+	 * -- If the start call causes a change of action, the new action will be started, and so on and so forth.
+	 * --- Frame ends if action starts occured
+	 * 2 Processes pending events in the action stack, runs suspends if possible (which start new actions)
+	 * -- If new action begins, it is started. If change_to occurs, old action has End() called.
+	 * --- New actions have Start() called. If the start call causes a change of action, the new action will be started, and so on and so forth.
+	 * ---- If new actions occured, frame ends
+	 * 3 Update is called on the current action
+	 * -- If update causes a change or suspend, the new action is started, old action is ended if "change", Start is called on the new action.
+	 *	  If the start call causes a change of action, the new action will be started, and so on and so forth.
+	 *
+	 * After all the steps occur, a new head action might be set with previous actions under it.
+	 * When an action is suspended for another, the OnSuspend call will be made on that action which is being suspended.
+	 * If an action is ended via a Done() result or ChangeTo event, the OnDone call will be made.
+	 */
+	FNLActionResult InvokeUpdate(float deltaSeconds);
+
+	/**
+	* Suspends this action possibly causing the action to complete. If this invoke returns false, the suspend cannot
+	* occur and the action should be ended. Any action which return false on suspend should expect an OnEnd invoke shortly after.
+	*/
+	bool InvokeOnSuspend(const UNLAction *interruptingAction);
+
+	/**
+	 * Called when this action resumes after being suspended. The result can contain any action you would like to take
+	 * such as immediately ending, changing to another action or suspending again.
+	 */
+	FNLActionResult InvokeOnResume(const UNLAction *resumingFrom);
+
+	/**
+	* Ends the action and action children and any actions above this action.
+	*/
+	void InvokeOnDone(const UNLAction* nextAction, const bool endAboveActions = true);
 
 	// Gets the pawn which is being controlled by the AI controller which is running NextLife as the AI brain.
 	// If you are getting the pawn owner to cast it to a specific class to get information, perhaps consider using a blackboard instead.
@@ -109,6 +156,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
 	class UNLBehavior* GetBehavior() const;
 
+	// Gets the world time associated with the AI being driven by this actions behavior
+	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
+	float GetWorldTimeSeconds() const;
+
 	// Gets the currently assigned blackboard component (if one has been assigned in AIController via UseBlackboard)
 	// Blackboards can be useful for storing information in a generic fassion for the AI to use while executing.
 	// Passing information to an AI through a blackboard can generalize your AI routines to be usable by many different pawn types.
@@ -116,12 +167,12 @@ public:
 	class UBlackboardComponent* GetBlackboard() const;
 
 	// Adds a sub action and calls OnStart
-	UFUNCTION(BlueprintCallable, Category = "NextLife|Action")
-	void AddSubAction(TSubclassOf<UNLAction> subActionClass, UNLActionPayload* payload) {}
+	//UFUNCTION(BlueprintCallable, Category = "NextLife|Action")
+	//void AddSubAction(TSubclassOf<UNLAction> subActionClass, UNLActionPayload* payload) {}
 
 	// Removes a sub action and calls OnEnd
-	UFUNCTION(BlueprintCallable, Category = "NextLife|Action")
-	void RemoveSubAction(TSubclassOf<UNLAction> subActionClass) {}
+	//UFUNCTION(BlueprintCallable, Category = "NextLife|Action")
+	//void RemoveSubAction(TSubclassOf<UNLAction> subActionClass) {}
 
 	//-----------------------------------------------------------------------------------------
 	/**
@@ -131,8 +182,8 @@ public:
 	 * When an action is resumed from another action, expect a OnResume call.
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category = "NextLife|Action")
-	FNLActionResult OnStart(const UNLAction *priorAction);
-	virtual FNLActionResult OnStart_Implementation(const UNLAction* priorAction)
+	FNLActionResult OnStart(const UNLActionPayload* payload);
+	virtual FNLActionResult OnStart_Implementation(const UNLActionPayload* payload)
 	{
 		return Continue();
 	}
@@ -154,8 +205,8 @@ public:
 	 * If all actions in the action stack were to end, idealy your AI should be left in a clean state.
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category = "NextLife|Action")
-	void OnEnd(const UNLAction *nextAction);
-	virtual void OnEnd_Implementation(const UNLAction *nextAction)
+	void OnDone(const UNLAction *nextAction);
+	virtual void OnDone_Implementation(const UNLAction *nextAction)
 	{
 	}
 
@@ -208,15 +259,22 @@ public:
 
 	// Return response to continue (no request being made, let the parent actions handle this event)
 	UFUNCTION(BlueprintPure, Category = "NextLife|Event Response")
-	static FNLEventResponse TryContinue()
+	FNLEventResponse TryContinue()
 	{
 		return FNLEventResponse();
+	}
+
+	// Request that event propagation past this point is prevented. Allows actions to block previous actions from taking a crack at an event.
+	UFUNCTION(BlueprintPure, Category = "NextLife|Event Response")
+	FNLEventResponse TrySustain(const ENLEventRequestPriority priority = ENLEventRequestPriority::TRY, const FString& reason = TEXT(""))
+	{
+		return FNLEventResponse(ENLEventRequest::SUSTAIN, priority, nullptr, reason);
 	}
 
 	// Return response to request a change to another action
 	// If this action is burried under other actions, ChangeTo will happen once this action becomes the active action again.
 	UFUNCTION(BlueprintPure, Category = "NextLife|Event Response")
-	static FNLEventResponse TryChangeTo(TSubclassOf<class UNLAction> action, UNLActionPayload* payload, const ENLEventRequestPriority priority = ENLEventRequestPriority::TRY, const FString& reason = TEXT(""))
+	FNLEventResponse TryChangeTo(TSubclassOf<class UNLAction> action, UNLActionPayload* payload, const ENLEventRequestPriority priority = ENLEventRequestPriority::TRY, const FString& reason = TEXT(""))
 	{
 		return FNLEventResponse(ENLEventRequest::CHANGE, priority, action, reason, payload);
 	}
@@ -224,7 +282,7 @@ public:
 	// Return response to request a suspension to another action
 	// Suspends will occur even if this action is not active. The new action will be pushed to the top of the stack.
 	UFUNCTION(BlueprintPure, Category = "NextLife|Event Response")
-	static FNLEventResponse TrySuspendFor(TSubclassOf<class UNLAction> action, UNLActionPayload* payload, const ENLEventRequestPriority priority = ENLEventRequestPriority::TRY, const FString& reason = TEXT(""))
+	FNLEventResponse TrySuspendFor(TSubclassOf<class UNLAction> action, UNLActionPayload* payload, const ENLEventRequestPriority priority = ENLEventRequestPriority::TRY, const FString& reason = TEXT(""))
 	{
 		return FNLEventResponse(ENLEventRequest::SUSPEND, priority, action, reason, payload);
 	}
@@ -232,24 +290,27 @@ public:
 	// Return response to request this action be done because of this event
 	// If this action is burried under other actions, Done will happen once this action becomes the active action again.
 	UFUNCTION(BlueprintPure, Category = "NextLife|Event Response")
-	static FNLEventResponse TryDone(TSubclassOf<class UNLAction> action, const ENLEventRequestPriority priority = ENLEventRequestPriority::TRY, const FString& reason = TEXT(""))
+	FNLEventResponse TryDone(TSubclassOf<class UNLAction> action, const ENLEventRequestPriority priority = ENLEventRequestPriority::TRY, const FString& reason = TEXT(""))
 	{
 		return FNLEventResponse(ENLEventRequest::DONE, priority, action, reason);
 	}
 
-protected:
+	// Has this action had its OnStart function called yet?
+	UPROPERTY()
+	bool HasStarted;
+	
 	// The action which started us in the stack that we will resume to when we finish
 	UPROPERTY()
-	UNLAction* ParentAction;
+	UNLAction* PreviousAction;
 
 	// The action which we started
 	UPROPERTY()
-	UNLAction* ChildAction;
+	UNLAction* NextAction;
 
 	// Actions which run along side us. Can be useful for creating a base action with smaller sub actions.
 	// Sub actions do not accept events.
-	UPROPERTY()
-	TArray<UNLAction*> SubActions;
+	//UPROPERTY()
+	//TArray<UNLAction*> SubActions;
 
 	// The response caused by an event in this action
 	// Can be superseeded by other action event responses of a higher priority

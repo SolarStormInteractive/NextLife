@@ -13,14 +13,16 @@ enum class ENLEventRequest : uint8
 {
 	// Nothing to request
 	NONE,
+	// Request that event propagation past this point is prevented. Allows actions to block previous actions from taking a crack at an event.
+	SUSTAIN,
 	// Request to change this action to a new action (this replaces this entry in the stack with a new one)
 	CHANGE,
-	// Request to suspend this action for another one (Burried actions can suspend child actions to start a new action)
+	// Request to suspend this action for another one (Previous actions can suspend head actions to start a new action)
 	SUSPEND,
+	// Request the action returning this event become the head of the action stack
+	TAKE_OVER,
 	// Request the action be done (Applies only to the action receiving the event)
 	DONE,
-	// 
-	TAKE_OVER,
 };
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -66,6 +68,24 @@ struct FNLEventResponse
 		, Payload(payload)
 		, Reason(reason)
 	{}
+
+	FORCEINLINE bool IsDone() const
+	{
+		return (Request == ENLEventRequest::DONE);
+	}
+
+	FORCEINLINE bool IsNone() const
+	{
+		return (Request == ENLEventRequest::NONE);
+	}
+
+	FORCEINLINE bool IsRequestingChange() const
+	{
+		return (Request == ENLEventRequest::CHANGE ||
+			    Request == ENLEventRequest::SUSPEND ||
+			    Request == ENLEventRequest::DONE ||
+			    Request == ENLEventRequest::TAKE_OVER);
+	}
 
 	// The request being made
 	UPROPERTY()

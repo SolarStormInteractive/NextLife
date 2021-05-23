@@ -26,6 +26,7 @@ public:
 
 	/**
 	 * Request the AI to move some place
+	 * This is only required if your AI needs to stay in sync with movement requests.
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category="NextLife|SquadCommandEvents")
 	FNLEventResponse Movement_MoveTo(const AActor *goal, const FVector &pos, float range);

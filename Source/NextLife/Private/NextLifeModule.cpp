@@ -2,7 +2,6 @@
 
 #include "NextLifeModule.h"
 #include "Modules/ModuleManager.h"
-#include "Engine/World.h"
 
 DEFINE_LOG_CATEGORY(LogNextLife);
 

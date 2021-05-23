@@ -18,6 +18,7 @@ public class NextLife : ModuleRules
                 "CoreUObject",
                 "Engine",
                 "AIModule",
+                "NavigationSystem",
 			}
 		);
 

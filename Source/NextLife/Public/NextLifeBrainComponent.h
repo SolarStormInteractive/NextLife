@@ -39,6 +39,10 @@ public:
 	// NOTE: For sight and hearing, the pawn must contain a PawnSensingComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Brain")
 	bool AutoHookUpSenses;
+
+	// If true, all behavior state will be logged. Actions starting, updating, changing, suspending, ending, etc...
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Brain")
+	bool LogState;
 	
 	// Add a behavior to this brain
 	UFUNCTION(BlueprintCallable, Category = "NextLife|Brain")
@@ -46,7 +50,7 @@ public:
 
 	// Remove a behavior from this brain
 	UFUNCTION(BlueprintCallable, Category = "NextLife|Brain")
-	bool Removebehavior(TSubclassOf<class UNLBehavior> behaviorClass);
+	bool RemoveBehavior(TSubclassOf<class UNLBehavior> behaviorClass);
 
 	// Called when choosing behaviors to run this frame. By default, uses the supplied conditional delegate to determine which behaviors to run.
 	// You can override this to control which behaviors are choosen to run with more complex logic.
@@ -78,6 +82,9 @@ public:
 	virtual bool IsPaused() const override;
 
 protected:
+
+	UFUNCTION()
+	void OnBehaviorComplete(class UNLBehavior* completeBehavior);
 
 	UPROPERTY(BlueprintReadOnly, Category = "NextLife|Brain")
 	TArray<FNLBehaviorHolder> Behaviors;
