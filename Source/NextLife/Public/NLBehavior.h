@@ -112,27 +112,17 @@ protected:
 	/**
 	 * When an event occurs and an action accept it with a result this is called to store the event result for processing
 	 * in the future.
+	 * @return True if the event was handled
 	 */
 	UFUNCTION(BlueprintCallable, Category = "NextLife|Behavior")
-	void StorePendingEventResult(UNLAction* respondingAction, const FString& eventName, const struct FNLEventResponse& result);
-
-	struct FNLPendingEvent
-	{
-		FNLPendingEvent(const FNLEventResponse& response, class UNLAction* respondingAction)
-			: Response(response), RespondingAction(respondingAction) {}
-		FNLEventResponse Response;
-		class UNLAction* RespondingAction;
-	};
+	bool HandleEventResponse(UNLAction* respondingAction, const FName eventName, const struct FNLEventResponse& response);
 	
 	/**
-	 * Processes events in the action stack
+	 * Apply pending events in the action stack and return the new top level action
 	 */
-	FNLPendingEvent ProcessPendingEvents() const;
+	class UNLAction* ApplyPendingEvents();
 
-	/**
-	* Applies an events result which could cause a change to the action stack
-	*/
-	UNLAction* ApplyEventResponse(const FNLPendingEvent& result);
+	static void CreateActionResultFromEvent(const FNLEventResponse& response, FNLActionResult& actionResultOut);
 
 	// The current TOP action
 	UPROPERTY(BlueprintReadOnly, Category = "Behavior")

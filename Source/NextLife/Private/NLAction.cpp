@@ -11,8 +11,7 @@
 /**
 */
 UNLAction::UNLAction()
-	: SuspendPriority(ENLEventRequestPriority::NONE)
-	, HasStarted(false)
+	: HasStarted(false)
 {
 
 }
@@ -55,10 +54,10 @@ FNLActionResult UNLAction::InvokeOnResume(const UNLAction *resumingFrom)
 //---------------------------------------------------------------------------------------------------------------------
 /**
 */
-void UNLAction::InvokeOnDone(const UNLAction* nextAction, const bool endAboveActions)
+void UNLAction::InvokeOnDone(const UNLAction* nextAction)
 {
 	OnDone(nextAction);
-	if(NextAction && endAboveActions)
+	if(NextAction)
 	{
 		NextAction->InvokeOnDone(nextAction);
 		NextAction = nullptr;

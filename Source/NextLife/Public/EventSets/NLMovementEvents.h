@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "NLEvents.h"
+#include "NLTypes.h"
 #include "AITypes.h"
 #include "NLMovementEvents.generated.h"
 

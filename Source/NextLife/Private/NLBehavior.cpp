@@ -85,17 +85,12 @@ void UNLBehavior::RunBehavior(float deltaSeconds)
 		return;
 	}
 
-	// Process events before updating
-	const UNLBehavior::FNLPendingEvent eventResponse = ProcessPendingEvents();
-	if(eventResponse.Response.Request != ENLEventRequest::NONE && eventResponse.RespondingAction)
+	// Apply pending events which could modify the current action
+	Action = ApplyPendingEvents();
+	if(!Action)
 	{
-		// A change is occuring, apply it
-		Action = ApplyEventResponse(eventResponse);
-		if(!Action)
-		{
-			OnBehaviorEnded.Broadcast(this);
-		}
-		return; // Frame skip
+		OnBehaviorEnded.Broadcast(this);
+		return;
 	}
 
 	// Frame Update the current action and apply its result
@@ -144,7 +139,7 @@ UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result)
 	checkf(Action, TEXT("ApplyActionResult should not be made without a valid action stack!"));
 	checkf(!Action->NextAction, TEXT("The TOP action should not have a NextAction set, something bad happened"));
 	
-	if(GetBrainComponent()->LogState && result.Result != ENLActionResultType::CONTINUE)
+	if(GetBrainComponent()->LogState && result.Change != ENLActionChangeType::NONE)
 	{
 		SET_WARN_COLOR(COLOR_WHITE);
 		UE_LOG(LogNextLife, Warning, TEXT("ApplyActionResult : %3.2f: %s:%s: "), GetWorldTimeSeconds(),
@@ -153,9 +148,9 @@ UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result)
 		CLEAR_WARN_COLOR();
 	}
 	
-	switch(result.Result)
+	switch(result.Change)
 	{
-		case ENLActionResultType::CHANGE:
+		case ENLActionChangeType::CHANGE:
 			{
 				if(!result.Action)
 				{
@@ -187,7 +182,7 @@ UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result)
 				const FNLActionResult newActionResult = Action->InvokeOnStart(result.Payload);
 				return ApplyActionResult(newActionResult);
 			}
-		case ENLActionResultType::SUSPEND:
+		case ENLActionChangeType::SUSPEND:
 			{
 				if(result.Action == nullptr)
 				{
@@ -228,7 +223,7 @@ UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result)
 				const FNLActionResult newActionResult = Action->InvokeOnStart(result.Payload);
 				return ApplyActionResult(newActionResult);
 			}
-		case ENLActionResultType::DONE:
+		case ENLActionChangeType::DONE:
 			{
 				if(GetBrainComponent()->LogState)
 				{
@@ -264,38 +259,36 @@ UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result)
 //---------------------------------------------------------------------------------------------------------------------
 /**
 */
-void UNLBehavior::StorePendingEventResult(UNLAction* respondingAction, const FString& eventName, const FNLEventResponse& result)
+bool UNLBehavior::HandleEventResponse(UNLAction* respondingAction, const FName eventName, const FNLEventResponse& response)
 {
 	check(respondingAction);
-	check(result.Request != ENLEventRequest::NONE);
 
+	if(response.IsNone())
+	{
+		// Nothing to handle, move on
+		return false;
+	}
+	
+	bool eventHandled = false;
 	FString storeAction = "STORED";
 
-	if(result.Request == ENLEventRequest::SUSPEND && result.Priority < Action->SuspendPriority)
-	{
-		UE_LOG(LogNextLife, Verbose, TEXT("%s::%s -> %s SUSPEND ignored because of TOP action SuspendPriority"), *GetName(), *respondingAction->GetName(), *eventName);
-		storeAction = TEXT("SUSPEND IGNORED");
-	}
-	else if(result.Priority > respondingAction->EventResponse.Priority)
+	// Check if there is already an event pending which has a higher priority. If not, we can replace it.
+	if(response.Priority > respondingAction->EventResponse.Priority)
 	{
 		if(respondingAction->EventResponse.Priority != ENLEventRequestPriority::NONE)
 		{
 			storeAction = "OVERRODE PREVIOUS WITH";
 		}
-		respondingAction->EventResponse = result;
-	}
-	else if(result.Priority == respondingAction->EventResponse.Priority && respondingAction->EventResponse.Request == ENLEventRequest::SUSTAIN)
-	{
-		// Sustains can be overriden
-		storeAction = TEXT("OVERRODE SUSTAIN WITH");
-		respondingAction->EventResponse = result;
+		respondingAction->EventResponse = response;
+		respondingAction->EventResponse.EventName = eventName;
+		eventHandled = true;
 	}
 	else
 	{
 		storeAction = TEXT("IGNORED");
-		if(result.Priority == ENLEventRequestPriority::CRITICAL)
+		if(response.Priority == ENLEventRequestPriority::CRITICAL)
 		{
-			UE_LOG(LogNextLife, Warning, TEXT("%s::%s -> %s RESULT_CRITICAL collision"), *GetName(), *respondingAction->GetName(), *eventName);
+			UE_LOG(LogNextLife, Warning, TEXT("%s::%s -> %s RESULT_CRITICAL collision"), *GetName(), *respondingAction->GetName(), *eventName.ToString());
 			storeAction = TEXT("IGNORE COLLISION");
 		}
 	}
@@ -303,212 +296,122 @@ void UNLBehavior::StorePendingEventResult(UNLAction* respondingAction, const FSt
 	if(GetBrainComponent()->LogState)
 	{
 		FString requestStr;
-		switch(result.Request)
+		switch(response.ChangeRequest)
 		{
-			case ENLEventRequest::DONE:
+			case ENLActionChangeType::DONE:
 				{
 					requestStr = TEXT("DONE");
 					break;
 				}
-			case ENLEventRequest::CHANGE:
+			case ENLActionChangeType::CHANGE:
 				{
-					check(result.Action);
-					requestStr = FString::Printf(TEXT("CHANGE to %s (%s)"), *result.Action->GetName(), *UEnum::GetValueAsString(result.Priority));
+					check(response.Action);
+					requestStr = FString::Printf(TEXT("CHANGE to %s (%s)"), *response.Action->GetName(), *UEnum::GetValueAsString(response.Priority));
 					break;
 				}
-			case ENLEventRequest::SUSPEND:
+			case ENLActionChangeType::SUSPEND:
 				{
-					check(result.Action);
-					requestStr = FString::Printf(TEXT("SUSPEND for %s (%s)"), *result.Action->GetName(), *UEnum::GetValueAsString(result.Priority));
+					check(response.Action);
+					requestStr = FString::Printf(TEXT("SUSPEND for %s (%s)"), *response.Action->GetName(), *UEnum::GetValueAsString(response.Priority));
 					break;
 				}
-			case ENLEventRequest::TAKE_OVER:
+			/*case ENLActionChangeType::TAKE_OVER:
 				{
-					check(result.Action);
-					requestStr = FString::Printf(TEXT("%s TAKE_OVER (%s)"), *result.Action->GetName(), *UEnum::GetValueAsString(result.Priority));
+					check(response.Action);
+					requestStr = FString::Printf(TEXT("%s TAKE_OVER (%s)"), *response.Action->GetName(), *UEnum::GetValueAsString(response.Priority));
 					break;
-				}
+				}*/
 			default:
-				return;
+				break;
 		}
 		SET_WARN_COLOR(COLOR_CYAN);
 		UE_LOG(LogNextLife, Warning, TEXT("%s:%s %s EVENT '%s' with request %s. %s"), *GetName(),
 																					  *respondingAction->GetName(),
 																					  *storeAction,
-																					  *eventName,
+																					  *eventName.ToString(),
 																					  *requestStr,
-																					  *result.Reason);
+																					  *response.Reason);
 		CLEAR_WARN_COLOR();
 	}
+
+	return eventHandled;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
 /**
 */
-UNLBehavior::FNLPendingEvent UNLBehavior::ProcessPendingEvents() const
+UNLAction* UNLBehavior::ApplyPendingEvents()
 {
-	if(Action->EventResponse.IsRequestingChange())
+	if(!Action->EventResponse.IsNone())
 	{
-		// Apply this top level response immediately, and clear
-		const FNLEventResponse eventResponse = Action->EventResponse;
+		// Apply the top level response immediately
+		FNLActionResult newAction;
+		CreateActionResultFromEvent(Action->EventResponse, newAction);
+		Action = ApplyActionResult(newAction);
+		// Clear
 		Action->EventResponse = FNLEventResponse();
-		
-		if(eventResponse.Request == ENLEventRequest::TAKE_OVER)
-		{
-			// TOP action asked for a take over but there is nothing to take over. Just stop here for this frame.
-			return FNLPendingEvent(FNLEventResponse(), nullptr);
-		}
-		return FNLPendingEvent(eventResponse, Action);
 	}
 
-	// Clear out the top, any other response doesn't change anything
-	Action->EventResponse = FNLEventResponse();
-
-	// Check for pending suspends in previous actions
-	UNLAction* PreviousAction = Action->PreviousAction;
-	while(PreviousAction)
+	// Check for pending requests from lower actions, determine the highest order request and send it to the top level
+	// for evaluation.
+	FNLEventResponse requestedResponse;
+	UNLAction* requestingAction = nullptr;
+	UNLAction* previousAction = Action->PreviousAction;
+	while(previousAction)
 	{
-		// Suspends add ontop of the current TOP action
-		if(PreviousAction->EventResponse.Request == ENLEventRequest::SUSPEND)
+		if(previousAction->EventResponse.Priority > requestedResponse.Priority)
 		{
-			const FNLEventResponse eventResponse = PreviousAction->EventResponse;
-			PreviousAction->EventResponse = FNLEventResponse();
-			return FNLPendingEvent(eventResponse, Action);
-		}
-		// Take overs clobber actions above a specific action making that action the TOP action
-		if(PreviousAction->EventResponse.Request == ENLEventRequest::TAKE_OVER)
-		{
-			const FNLEventResponse eventResponse = PreviousAction->EventResponse;
-			PreviousAction->EventResponse = FNLEventResponse();
-			return FNLPendingEvent(eventResponse, PreviousAction);
+			requestedResponse = previousAction->EventResponse;
+			requestingAction = previousAction;
 		}
 
-		PreviousAction = PreviousAction->PreviousAction;
+		// Clear
+		previousAction->EventResponse = FNLEventResponse();
 	}
 
-	// No new events
-	return FNLPendingEvent(FNLEventResponse(), nullptr);
+	// Now if this request is not None request from the top this event action to our requesting action to see if the
+	// above actions agree to it being executed.
+	if(!requestedResponse.IsNone())
+	{
+		UNLAction* nextAction = Action;
+		while(nextAction && nextAction != requestingAction)
+		{
+			// If any action doesn't agree, we cannot use this request
+			if(!Action->OnRequestEvent(requestedResponse, requestingAction))
+			{
+				break;
+			}
+			nextAction = nextAction->PreviousAction;
+		}
+
+		// If all actions up to the requesting action agree with the event, we clear all actions after the requesting
+		// action and run the event.
+		if(nextAction == requestingAction)
+		{
+			// Clear all actions above the requesting action
+			requestingAction->NextAction->InvokeOnDone(requestingAction);
+			requestingAction->NextAction = nullptr;
+			// The requesting action has become the top action for now
+			Action = requestingAction;
+			// Now run the event
+			FNLActionResult newAction;
+			CreateActionResultFromEvent(requestedResponse, newAction);
+			Action = ApplyActionResult(newAction);
+		}
+	}
+	
+	return Action;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
 /**
 */
-UNLAction* UNLBehavior::ApplyEventResponse(const FNLPendingEvent& result)
+void UNLBehavior::CreateActionResultFromEvent(const FNLEventResponse& response, FNLActionResult& actionResultOut)
 {
-	checkf(Action, TEXT("ApplyEventResponse should not be made without a valid action stack!"));
-	checkf(result.RespondingAction, TEXT("ApplyEventResponse result should have a valid RespondingAction!"));
-	
-	if(GetBrainComponent()->LogState && result.Response.Request != ENLEventRequest::NONE)
-	{
-		SET_WARN_COLOR(COLOR_WHITE);
-		UE_LOG(LogNextLife, Warning, TEXT("ApplyEventResponse : %3.2f: %s:%s: "), GetWorldTimeSeconds(),
-															*GetBrainComponent()->GetAIOwner()->GetName(), 
-															*GetName());
-		CLEAR_WARN_COLOR();
-	}
-	
-	switch(result.Response.Request)
-	{
-		case ENLEventRequest::CHANGE:
-			{
-				if(!result.Response.Action)
-				{
-					UE_LOG(LogNextLife, Error, TEXT("CHANGE to a nullptr Action"));
-					return Action;
-				}
-				
-				if(GetBrainComponent()->LogState)
-				{
-					SET_WARN_COLOR(COLOR_GREEN);
-					UE_LOG(LogNextLife, Warning, TEXT("%s CHANGE to %s"), *result.RespondingAction->GetName(), 
-																		  *result.Response.Action->GetName());
-					CLEAR_WARN_COLOR();
-				}
-
-				
-				
-				return Action;
-			}
-		case ENLEventRequest::SUSPEND:
-			{
-				if(!result.Response.Action)
-				{
-					UE_LOG(LogNextLife, Error, TEXT("SUSPEND to a nullptr Action"));
-					return Action;
-				}
-				
-				if(GetBrainComponent()->LogState)
-				{
-					SET_WARN_COLOR(COLOR_YELLOW);
-					UE_LOG(LogNextLife, Warning, TEXT("%s SUSPEND to %s"), *result.RespondingAction->GetName(), 
-																		   *result.Response.Action->GetName());
-					CLEAR_WARN_COLOR();
-				}
-				
-				return Action;
-			}
-		case ENLEventRequest::DONE:
-			{
-				if(GetBrainComponent()->LogState)
-				{
-					SET_WARN_COLOR(COLOR_RED);
-					UE_LOG(LogNextLife, Warning, TEXT("%s DONE"), *result.RespondingAction->GetName());
-					CLEAR_WARN_COLOR();
-				}
-
-				if(result.RespondingAction == Action)
-				{
-					// The top level action is ending, do the normal stuff
-					UNLAction* previousTopAction = Action;
-					Action = Action->PreviousAction;
-
-					previousTopAction->InvokeOnDone(Action);
-
-					const FNLActionResult resumeResult = Action->InvokeOnResume(previousTopAction);
-					return ApplyActionResult(resumeResult);
-				}
-				else
-				{
-					// A middle action is ending, remove it and clean up links
-					
-				}
-				
-				return Action;
-			}
-		case ENLEventRequest::TAKE_OVER:
-			{
-				if(GetBrainComponent()->LogState)
-				{
-					SET_WARN_COLOR(COLOR_RED);
-					UE_LOG(LogNextLife, Warning, TEXT("%s TAKE_OVER"), *result.RespondingAction->GetName());
-					CLEAR_WARN_COLOR();
-				}
-
-				UNLAction* previousTopAction = Action;
-				
-				// The responding action becomes the new action and everything above is DONE
-				Action = result.RespondingAction;
-				
-				if(Action->NextAction)
-				{
-					// Make all above actions DONE
-					Action->NextAction->InvokeOnDone(Action);
-					Action->NextAction = nullptr;
-					
-					// Call the resume as usual which could cause new actions etc
-					const FNLActionResult resumeResult = Action->InvokeOnResume(previousTopAction);
-					return ApplyActionResult(resumeResult);
-				}
-				
-				// Nothing to resume from so just continue
-				return Action;
-			}
-		case ENLEventRequest::NONE:
-		case ENLEventRequest::SUSTAIN:
-		default:
-			// Nones and Sustains do nothing
-			return Action;
-	}
+	actionResultOut.Action = response.Action;
+	actionResultOut.Change = response.ChangeRequest;
+	actionResultOut.Payload = response.Payload;
+	actionResultOut.Reason = response.Reason;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -544,9 +447,8 @@ FNLEventResponse UNLBehavior::General_Message_Implementation(UNLGeneralMessage* 
     	if(curAction->Implements<UNLGeneralEvents>())
     	{
     		responseOut = INLGeneralEvents::Execute_General_Message(curAction, message);
-    		if(responseOut.Request != ENLEventRequest::NONE)
+    		if(HandleEventResponse(curAction, TEXT("General_Message"), responseOut))
     		{
-    			StorePendingEventResult(curAction, TEXT("General_Message"), responseOut);
     			break;
     		}
     	}
@@ -569,9 +471,8 @@ FNLEventResponse UNLBehavior::Sense_Sight_Implementation(APawn* subject, bool in
 		if(curAction->Implements<UNLSensingEvents>())
 		{
 			responseOut = INLSensingEvents::Execute_Sense_Sight(curAction, subject, indirect);
-			if(responseOut.Request != ENLEventRequest::NONE)
+			if(HandleEventResponse(curAction, TEXT("Sense_Sight"), responseOut))
 			{
-				StorePendingEventResult(curAction, TEXT("Sense_Sight"), responseOut);
 				break;
 			}
 		}
@@ -594,9 +495,8 @@ FNLEventResponse UNLBehavior::Sense_SightLost_Implementation(APawn* subject)
 		if(curAction->Implements<UNLSensingEvents>())
 		{
 			responseOut = INLSensingEvents::Execute_Sense_SightLost(curAction, subject);
-			if(responseOut.Request != ENLEventRequest::NONE)
+			if(HandleEventResponse(curAction, TEXT("Sense_SightLost"), responseOut))
 			{
-				StorePendingEventResult(curAction, TEXT("Sense_SightLost"), responseOut);
 				break;
 			}
 		}
@@ -619,9 +519,8 @@ FNLEventResponse UNLBehavior::Sense_Sound_Implementation(APawn* OtherActor, cons
 		if(curAction->Implements<UNLSensingEvents>())
 		{
 			responseOut = INLSensingEvents::Execute_Sense_Sound(curAction, OtherActor, Location, Volume, flags);
-			if(responseOut.Request != ENLEventRequest::NONE)
+			if(HandleEventResponse(curAction, TEXT("Sense_Sound"), responseOut))
 			{
-				StorePendingEventResult(curAction, TEXT("Sense_Sound"), responseOut);
 				break;
 			}
 		}
@@ -644,9 +543,8 @@ FNLEventResponse UNLBehavior::Sense_Contact_Implementation(AActor* other, const 
 		if(curAction->Implements<UNLSensingEvents>())
 		{
 			responseOut = INLSensingEvents::Execute_Sense_Contact(curAction, other, hitResult);
-			if(responseOut.Request != ENLEventRequest::NONE)
+			if(HandleEventResponse(curAction, TEXT("Sense_Contact"), responseOut))
 			{
-				StorePendingEventResult(curAction, TEXT("Sense_Contact"), responseOut);
 				break;
 			}
 		}
@@ -669,9 +567,8 @@ FNLEventResponse UNLBehavior::Movement_MoveTo_Implementation(const AActor* goal,
 		if(curAction->Implements<UNLSensingEvents>())
 		{
 			responseOut = INLMovementEvents::Execute_Movement_MoveTo(curAction, goal, pos, range);
-			if(responseOut.Request != ENLEventRequest::NONE)
+			if(HandleEventResponse(curAction, TEXT("Movement_MoveTo"), responseOut))
 			{
-				StorePendingEventResult(curAction, TEXT("Movement_MoveTo"), responseOut);
 				break;
 			}
 		}
@@ -694,9 +591,8 @@ FNLEventResponse UNLBehavior::Movement_MoveToComplete_Implementation(FAIRequestI
 		if(curAction->Implements<UNLSensingEvents>())
 		{
 			responseOut = INLMovementEvents::Execute_Movement_MoveToComplete(curAction, RequestID);
-			if(responseOut.Request != ENLEventRequest::NONE)
+			if(HandleEventResponse(curAction, TEXT("Movement_MoveToComplete"), responseOut))
 			{
-				StorePendingEventResult(curAction, TEXT("Movement_MoveToComplete"), responseOut);
 				break;
 			}
 		}

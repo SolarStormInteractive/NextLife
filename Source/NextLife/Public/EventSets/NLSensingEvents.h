@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "NLEvents.h"
+#include "NLTypes.h"
 #include "NLSensingEvents.generated.h"
 
 //---------------------------------------------------------------------------------------------------------------------

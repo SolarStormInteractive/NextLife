@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "NLEvents.h"
+#include "NLTypes.h"
 #include "NLGeneralEvents.generated.h"
 
 // A generic message which can be sent to the AI.

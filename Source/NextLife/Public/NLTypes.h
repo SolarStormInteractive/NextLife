@@ -2,26 +2,21 @@
 
 #pragma once
 
-#include "NLEvents.generated.h"
+#include "NLTypes.generated.h"
 
 //----------------------------------------------------------------------------------------------------------------------
 /**
- * An event causes a request, these are the different types
- */
+*/
 UENUM()
-enum class ENLEventRequest : uint8
+enum class ENLActionChangeType : uint8
 {
-	// Nothing to request
+	// No Change
 	NONE,
-	// Request that event propagation past this point is prevented. Allows actions to block previous actions from taking a crack at an event.
-	SUSTAIN,
-	// Request to change this action to a new action (this replaces this entry in the stack with a new one)
+	// Change this action with a new action (this replaces this entry in the stack with a new one)
 	CHANGE,
-	// Request to suspend this action for another one (Previous actions can suspend head actions to start a new action)
+	// Suspend this action for another one
 	SUSPEND,
-	// Request the action returning this event become the head of the action stack
-	TAKE_OVER,
-	// Request the action be done (Applies only to the action receiving the event)
+	// This action has completed, resume parent action
 	DONE,
 };
 
@@ -52,50 +47,38 @@ struct FNLEventResponse
 	GENERATED_BODY()
 
 	FNLEventResponse()
-		: Request(ENLEventRequest::NONE)
+		: ChangeRequest(ENLActionChangeType::NONE)
 		, Priority(ENLEventRequestPriority::NONE)
 		, Payload(nullptr)
 	{}
 
-	FNLEventResponse(ENLEventRequest request,
+	FNLEventResponse(ENLActionChangeType changeRequest,
 					 ENLEventRequestPriority priority,
 					 TSubclassOf<class UNLAction> action,
 					 const FString& reason,
 					 class UNLActionPayload* payload = nullptr)
-		: Request(request)
+		: ChangeRequest(changeRequest)
 		, Priority(priority)
 		, Action(action)
 		, Payload(payload)
 		, Reason(reason)
 	{}
 
-	FORCEINLINE bool IsDone() const
-	{
-		return (Request == ENLEventRequest::DONE);
-	}
-
+	// Does this response contain no request?
 	FORCEINLINE bool IsNone() const
 	{
-		return (Request == ENLEventRequest::NONE);
-	}
-
-	FORCEINLINE bool IsRequestingChange() const
-	{
-		return (Request == ENLEventRequest::CHANGE ||
-			    Request == ENLEventRequest::SUSPEND ||
-			    Request == ENLEventRequest::DONE ||
-			    Request == ENLEventRequest::TAKE_OVER);
+		return ChangeRequest == ENLActionChangeType::NONE;
 	}
 
 	// The request being made
 	UPROPERTY()
-	ENLEventRequest Request;
+	ENLActionChangeType ChangeRequest;
 
 	// The priority of the request (so other requests can maybe superseed this request)
 	UPROPERTY()
 	ENLEventRequestPriority Priority;
 
-	// The action associated with this request
+	// The action associated with this request (Change and Suspend use this)
 	UPROPERTY()
 	TSubclassOf<class UNLAction> Action;
 
@@ -106,4 +89,8 @@ struct FNLEventResponse
 	// The reason for this response
 	UPROPERTY()
 	FString Reason;
+
+	// The name of the event which caused this response
+	UPROPERTY()
+	FName EventName;
 };

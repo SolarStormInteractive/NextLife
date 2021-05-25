@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "NLEvents.h"
+#include "NLTypes.h"
 #include "NLSquadEvents.generated.h"
 
 //---------------------------------------------------------------------------------------------------------------------

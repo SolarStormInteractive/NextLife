@@ -2,26 +2,9 @@
 
 #pragma once
 
-#include "NLEvents.h"
+#include "NLTypes.h"
 
 #include "NLAction.generated.h"
-
-//----------------------------------------------------------------------------------------------------------------------
-/**
- * An event causes a request, these are the different types
- */
-UENUM()
-enum class ENLActionResultType : uint8
-{
-	// Continue running this action next time
-	CONTINUE,
-	// Change this action with a new action (this replaces this entry in the stack with a new one)
-	CHANGE,
-	// Suspend this action for another one
-	SUSPEND,
-	// This action has completed, resume parent action
-	DONE,
-};
 
 //----------------------------------------------------------------------------------------------------------------------
 /**
@@ -33,23 +16,23 @@ struct FNLActionResult
 	GENERATED_BODY()
 
 	FNLActionResult()
-		: Result(ENLActionResultType::CONTINUE)
+		: Change(ENLActionChangeType::NONE)
 		, Payload(nullptr)
 	{}
 
-	FNLActionResult(ENLActionResultType result,
+	FNLActionResult(ENLActionChangeType change,
 					TSubclassOf<class UNLAction> action,
 					const FString& reason,
 					class UNLActionPayload* payload = nullptr)
-		: Result(result)
+		: Change(change)
 		, Action(action)
 		, Payload(payload)
 		, Reason(reason)
 	{}
 
-	// The request being made
+	// The change to be made
 	UPROPERTY()
-	ENLActionResultType Result;
+	ENLActionChangeType Change;
 
 	// The action associated with this request
 	UPROPERTY()
@@ -97,9 +80,10 @@ protected:
 	TSubclassOf<UNLActionPayload> PayloadClass;
 
 	// This action will only be suspendable from an event IF the suspend request is higher than this priority.
+	// If the event is fired from the top level action, this priority is ignored as the top level event is authority.
 	// If a suspend event is dropped because of this, a verbose log message will be thrown.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NextLife|Action")
-	ENLEventRequestPriority SuspendPriority;
+	//UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NextLife|Action")
+	//ENLEventRequestPriority SuspendPriority;
 
 	/**
 	* Starts this action and sets its previous action pointer.
@@ -141,7 +125,7 @@ protected:
 	/**
 	* Ends the action and action children and any actions above this action.
 	*/
-	void InvokeOnDone(const UNLAction* nextAction, const bool endAboveActions = true);
+	void InvokeOnDone(const UNLAction* nextAction);
 
 	// Gets the pawn which is being controlled by the AI controller which is running NextLife as the AI brain.
 	// If you are getting the pawn owner to cast it to a specific class to get information, perhaps consider using a blackboard instead.
@@ -165,6 +149,13 @@ protected:
 	// Passing information to an AI through a blackboard can generalize your AI routines to be usable by many different pawn types.
 	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
 	class UBlackboardComponent* GetBlackboard() const;
+
+	// Is this action currently the top action
+	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
+	FORCEINLINE bool IsTopAction() const
+	{
+		return NextAction == nullptr;
+	}
 
 	// Adds a sub action and calls OnStart
 	//UFUNCTION(BlueprintCallable, Category = "NextLife|Action")
@@ -229,32 +220,46 @@ protected:
 		return Continue();
 	}
 
+	// When a lower level (not top action) requests a change to the stack, the top level action gets this call
+	// and can refuse the event with the return response, true being accept, false being refuse.
+	// NOTE: If this is a simple additive action, it might be meaningful to return true always to let other actions know
+	//		 it can be overriden.
+	UFUNCTION(BlueprintNativeEvent, Category = "NextLife|Action")
+	bool OnRequestEvent(const FNLEventResponse &eventRequested, UNLAction* requester);
+	virtual bool OnRequestEvent_Implementation(const FNLEventResponse &eventRequested, UNLAction* requester)
+	{
+		// By default:
+		// ignore trys (Top level actions should ignore trys for the most part, it means the lower level action doesn't care)
+		// ignore anything but suspends (Changes and Dones could cause large changes to the stack, so don't allow them by default)
+		return eventRequested.Priority > ENLEventRequestPriority::TRY && eventRequested.ChangeRequest == ENLActionChangeType::SUSPEND;
+	}
+
 	// Continue the action
 	UFUNCTION(BlueprintPure, Category = "NextLife|Action Result")
-	static FNLActionResult Continue()
+	FNLActionResult Continue()
 	{
 		return FNLActionResult();
 	}
 
 	// change to another action
 	UFUNCTION(BlueprintPure, Category = "NextLife|Action Result")
-	static FNLActionResult ChangeTo(TSubclassOf<class UNLAction> action, UNLActionPayload* payload, const ENLEventRequestPriority priority = ENLEventRequestPriority::TRY, const FString& reason = TEXT(""))
+	FNLActionResult ChangeTo(TSubclassOf<class UNLAction> action, UNLActionPayload* payload, const ENLEventRequestPriority priority = ENLEventRequestPriority::TRY, const FString& reason = TEXT(""))
 	{
-		return FNLActionResult(ENLActionResultType::CHANGE, action, reason, payload);
+		return FNLActionResult(ENLActionChangeType::CHANGE, action, reason, payload);
 	}
 
 	// suspension to another action
 	UFUNCTION(BlueprintPure, Category = "NextLife|Action Result")
-	static FNLActionResult SuspendFor(TSubclassOf<class UNLAction> action, UNLActionPayload* payload, const ENLEventRequestPriority priority = ENLEventRequestPriority::TRY, const FString& reason = TEXT(""))
+	FNLActionResult SuspendFor(TSubclassOf<class UNLAction> action, UNLActionPayload* payload, const ENLEventRequestPriority priority = ENLEventRequestPriority::TRY, const FString& reason = TEXT(""))
 	{
-		return FNLActionResult(ENLActionResultType::SUSPEND, action, reason, payload);
+		return FNLActionResult(ENLActionChangeType::SUSPEND, action, reason, payload);
 	}
 
 	// the action is done
 	UFUNCTION(BlueprintPure, Category = "NextLife|Action Result")
-	static FNLActionResult Done(TSubclassOf<class UNLAction> action, const ENLEventRequestPriority priority = ENLEventRequestPriority::TRY, const FString& reason = TEXT(""))
+	FNLActionResult Done(TSubclassOf<class UNLAction> action, const ENLEventRequestPriority priority = ENLEventRequestPriority::TRY, const FString& reason = TEXT(""))
 	{
-		return FNLActionResult(ENLActionResultType::DONE, action, reason);
+		return FNLActionResult(ENLActionChangeType::DONE, action, reason);
 	}
 
 	// Return response to continue (no request being made, let the parent actions handle this event)
@@ -265,18 +270,18 @@ protected:
 	}
 
 	// Request that event propagation past this point is prevented. Allows actions to block previous actions from taking a crack at an event.
-	UFUNCTION(BlueprintPure, Category = "NextLife|Event Response")
-	FNLEventResponse TrySustain(const ENLEventRequestPriority priority = ENLEventRequestPriority::TRY, const FString& reason = TEXT(""))
-	{
-		return FNLEventResponse(ENLEventRequest::SUSTAIN, priority, nullptr, reason);
-	}
+	// UFUNCTION(BlueprintPure, Category = "NextLife|Event Response")
+	// FNLEventResponse TrySustain(const ENLEventRequestPriority priority = ENLEventRequestPriority::TRY, const FString& reason = TEXT(""))
+	// {
+	// 	return FNLEventResponse(ENLEventRequest::SUSTAIN, priority, nullptr, reason);
+	// }
 
 	// Return response to request a change to another action
 	// If this action is burried under other actions, ChangeTo will happen once this action becomes the active action again.
 	UFUNCTION(BlueprintPure, Category = "NextLife|Event Response")
 	FNLEventResponse TryChangeTo(TSubclassOf<class UNLAction> action, UNLActionPayload* payload, const ENLEventRequestPriority priority = ENLEventRequestPriority::TRY, const FString& reason = TEXT(""))
 	{
-		return FNLEventResponse(ENLEventRequest::CHANGE, priority, action, reason, payload);
+		return FNLEventResponse(ENLActionChangeType::CHANGE, priority, action, reason, payload);
 	}
 
 	// Return response to request a suspension to another action
@@ -284,7 +289,7 @@ protected:
 	UFUNCTION(BlueprintPure, Category = "NextLife|Event Response")
 	FNLEventResponse TrySuspendFor(TSubclassOf<class UNLAction> action, UNLActionPayload* payload, const ENLEventRequestPriority priority = ENLEventRequestPriority::TRY, const FString& reason = TEXT(""))
 	{
-		return FNLEventResponse(ENLEventRequest::SUSPEND, priority, action, reason, payload);
+		return FNLEventResponse(ENLActionChangeType::SUSPEND, priority, action, reason, payload);
 	}
 
 	// Return response to request this action be done because of this event
@@ -292,7 +297,7 @@ protected:
 	UFUNCTION(BlueprintPure, Category = "NextLife|Event Response")
 	FNLEventResponse TryDone(TSubclassOf<class UNLAction> action, const ENLEventRequestPriority priority = ENLEventRequestPriority::TRY, const FString& reason = TEXT(""))
 	{
-		return FNLEventResponse(ENLEventRequest::DONE, priority, action, reason);
+		return FNLEventResponse(ENLActionChangeType::DONE, priority, action, reason);
 	}
 
 	// Has this action had its OnStart function called yet?
