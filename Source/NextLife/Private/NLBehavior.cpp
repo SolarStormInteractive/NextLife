@@ -66,7 +66,7 @@ void UNLBehavior::BeginBehavior()
 
 	// The action hasn't started yet, start it and apply the result
 	const FNLActionResult actionResult = Action->InvokeOnStart(nullptr);
-	Action = ApplyActionResult(actionResult);
+	Action = ApplyActionResult(actionResult, false);
 
 	if(!Action)
 	{
@@ -95,7 +95,7 @@ void UNLBehavior::RunBehavior(float deltaSeconds)
 
 	// Frame Update the current action and apply its result
 	const FNLActionResult actionResult = Action->InvokeUpdate(deltaSeconds);
-	Action = ApplyActionResult(actionResult);
+	Action = ApplyActionResult(actionResult, false);
 
 	if(!Action)
 	{
@@ -137,7 +137,7 @@ void UNLBehavior::StopBehavior(bool callBehaviorEnded)
 //---------------------------------------------------------------------------------------------------------------------
 /**
 */
-UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result)
+UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result, bool fromRequest)
 {
 	checkf(Action, TEXT("ApplyActionResult should not be made without a valid action stack!"));
 	checkf(!Action->NextAction, TEXT("The TOP action should not have a NextAction set, something bad happened"));
@@ -145,9 +145,11 @@ UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result)
 	if(GetBrainComponent()->LogState && result.Change != ENLActionChangeType::NONE)
 	{
 		SET_WARN_COLOR(COLOR_WHITE);
-		UE_LOG(LogNextLife, Warning, TEXT("ApplyActionResult : %3.2f: %s:%s: "), GetWorldTimeSeconds(),
-															*GetBrainComponent()->GetAIOwner()->GetName(), 
-															*GetName());
+		UE_LOG(LogNextLife, Warning, TEXT("%s : %3.2f: %s:%s: "),
+									  fromRequest ? TEXT("ApplyActionEventResponse") : TEXT("ApplyActionResult"),
+									  GetWorldTimeSeconds(),
+									  *GetBrainComponent()->GetAIOwner()->GetName(), 
+									  *GetName());
 		CLEAR_WARN_COLOR();
 	}
 	
@@ -183,7 +185,7 @@ UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result)
 
 				// Start the new action and apply the result which could cause several actions to start via the recursion.
 				const FNLActionResult newActionResult = Action->InvokeOnStart(result.Payload);
-				return ApplyActionResult(newActionResult);
+				return ApplyActionResult(newActionResult, fromRequest);
 			}
 		case ENLActionChangeType::SUSPEND:
 			{
@@ -224,7 +226,7 @@ UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result)
 
 				// Start the new action and apply the result which could cause several actions to start via the recursion.
 				const FNLActionResult newActionResult = Action->InvokeOnStart(result.Payload);
-				return ApplyActionResult(newActionResult);
+				return ApplyActionResult(newActionResult, fromRequest);
 			}
 		case ENLActionChangeType::DONE:
 			{
@@ -246,7 +248,7 @@ UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result)
 					Action->NextAction = nullptr;
 					
 					const FNLActionResult resumeResult = Action->InvokeOnResume(endedAction);
-					return ApplyActionResult(resumeResult);
+					return ApplyActionResult(resumeResult, fromRequest);
 				}
 
 				// No more actions, this behavior has completed!
@@ -350,7 +352,7 @@ UNLAction* UNLBehavior::ApplyPendingEvents()
 		// Apply the top level response immediately
 		FNLActionResult newAction;
 		CreateActionResultFromEvent(Action->EventResponse, newAction);
-		Action = ApplyActionResult(newAction);
+		Action = ApplyActionResult(newAction, true);
 		// Clear
 		Action->EventResponse = FNLEventResponse();
 	}
@@ -376,30 +378,45 @@ UNLAction* UNLBehavior::ApplyPendingEvents()
 	// above actions agree to it being executed.
 	if(!requestedResponse.IsNone())
 	{
-		UNLAction* nextAction = Action;
-		while(nextAction && nextAction != requestingAction)
+		if(requestedResponse.IsAppendage && requestedResponse.ChangeRequest == ENLActionChangeType::SUSPEND)
 		{
-			// If any action doesn't agree, we cannot use this request
-			if(!Action->OnRequestEvent(requestedResponse, requestingAction))
+			// Suspend appends means we just want to put the action ontop of the top acton.
+			// Request this of the top action, this suspend it if we can do it.
+			if(Action->OnRequestEvent(requestedResponse, requestingAction))
 			{
-				break;
+				// Now run the suspend normally
+				FNLActionResult newAction;
+				CreateActionResultFromEvent(requestedResponse, newAction);
+				Action = ApplyActionResult(newAction, true);
 			}
-			nextAction = nextAction->PreviousAction;
 		}
-
-		// If all actions up to the requesting action agree with the event, we clear all actions after the requesting
-		// action and run the event.
-		if(nextAction == requestingAction)
+		else
 		{
-			// Clear all actions above the requesting action
-			requestingAction->NextAction->InvokeOnDone(requestingAction);
-			requestingAction->NextAction = nullptr;
-			// The requesting action has become the top action for now
-			Action = requestingAction;
-			// Now run the event
-			FNLActionResult newAction;
-			CreateActionResultFromEvent(requestedResponse, newAction);
-			Action = ApplyActionResult(newAction);
+			UNLAction* nextAction = Action;
+			while(nextAction && nextAction != requestingAction)
+			{
+				// If any action doesn't agree, we cannot use this request
+				if(!Action->OnRequestEvent(requestedResponse, requestingAction))
+				{
+					break;
+				}
+				nextAction = nextAction->PreviousAction;
+			}
+
+			// If all actions up to the requesting action agree with the event, we clear all actions after the requesting
+			// action and run the event.
+			if(nextAction == requestingAction)
+			{
+				// Clear all actions above the requesting action
+				requestingAction->NextAction->InvokeOnDone(requestingAction);
+				requestingAction->NextAction = nullptr;
+				// The requesting action has become the top action for now
+				Action = requestingAction;
+				// Now run the event
+				FNLActionResult newAction;
+				CreateActionResultFromEvent(requestedResponse, newAction);
+				Action = ApplyActionResult(newAction, true);
+			}
 		}
 	}
 	

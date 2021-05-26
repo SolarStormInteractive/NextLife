@@ -6,6 +6,7 @@
 
 //----------------------------------------------------------------------------------------------------------------------
 /**
+ * The different action changes which can occur, including a NONE which means no change (used to move on)
 */
 UENUM()
 enum class ENLActionChangeType : uint8
@@ -50,18 +51,21 @@ struct FNLEventResponse
 		: ChangeRequest(ENLActionChangeType::NONE)
 		, Priority(ENLEventRequestPriority::NONE)
 		, Payload(nullptr)
+		, IsAppendage(false)
 	{}
 
 	FNLEventResponse(ENLActionChangeType changeRequest,
 					 ENLEventRequestPriority priority,
 					 TSubclassOf<class UNLAction> action,
 					 const FString& reason,
-					 class UNLActionPayload* payload = nullptr)
+					 class UNLActionPayload* payload = nullptr,
+					 const bool isAppend = false)
 		: ChangeRequest(changeRequest)
 		, Priority(priority)
 		, Action(action)
 		, Payload(payload)
 		, Reason(reason)
+		, IsAppendage(isAppend)
 	{}
 
 	// Does this response contain no request?
@@ -93,4 +97,9 @@ struct FNLEventResponse
 	// The name of the event which caused this response
 	UPROPERTY()
 	FName EventName;
+
+	// Requesting the action be appended onto the top action
+	// Only used for suspend event responses
+	UPROPERTY()
+	bool IsAppendage;
 };

@@ -277,12 +277,15 @@ protected:
 		return FNLEventResponse(ENLActionChangeType::CHANGE, priority, action, reason, payload);
 	}
 
-	// Return response to request a suspension to another action
-	// Suspends will occur even if this action is not active. The new action will be pushed to the top of the stack.
+	/**
+	 * Return response to request a suspension to another action
+	 * Suspends will occur even if this action is not active. The new action will be pushed to the top of the stack.
+	 * @param isAppend - If true, 
+	 */
 	UFUNCTION(BlueprintPure, Category = "NextLife|Event Response")
-	FNLEventResponse TrySuspendFor(TSubclassOf<class UNLAction> action, UNLActionPayload* payload, const ENLEventRequestPriority priority = ENLEventRequestPriority::TRY, const FString& reason = TEXT(""))
+	FNLEventResponse TrySuspendFor(TSubclassOf<class UNLAction> action, UNLActionPayload* payload, const ENLEventRequestPriority priority = ENLEventRequestPriority::TRY, const bool isAppend = false, const FString& reason = TEXT(""))
 	{
-		return FNLEventResponse(ENLActionChangeType::SUSPEND, priority, action, reason, payload);
+		return FNLEventResponse(ENLActionChangeType::SUSPEND, priority, action, reason, payload, isAppend);
 	}
 
 	// Return response to request this action be done because of this event

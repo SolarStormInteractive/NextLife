@@ -10,6 +10,20 @@
 
 #include "NLBehavior.generated.h"
 
+// DOCUMENTATION
+/**
+ * Events
+ * -------------------
+ * When an event occurs it is iterated to each action starting from the top of the stack. If an action responds to
+ * the event, iteration stops and the event response is stored in the action.
+ *
+ * When a behavior is ticked, events are first processed.
+ * The top actions events are immediately processed.
+ * Actions under the top are iterated for event responses. The highest priority response is selected and other responses
+ * are cleared. If no response was found, nothing happens, and event processing completes.
+ * If a response was found, the top action is asked if the response can be used
+ */
+
 // On behavior actions complete
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNLOnBehaviorEnded, class UNLBehavior*, endedBehavior);
 
@@ -123,7 +137,7 @@ protected:
 	/**
 	 * Applies the current action result to the current TOP action possibly modifying the current set TOP action
 	 */
-	UNLAction* ApplyActionResult(const struct FNLActionResult& result);
+	UNLAction* ApplyActionResult(const struct FNLActionResult& result, bool fromRequest);
 
 	/**
 	 * When an event occurs and an action accept it with a result this is called to store the event result for processing
