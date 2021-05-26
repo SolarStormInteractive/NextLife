@@ -3,24 +3,11 @@
 #pragma once
 
 #include "AIModule\Classes\BrainComponent.h"
+
+#include "EventSets/NLGeneralEvents.h"
+#include "EventSets/NLMovementEvents.h"
+
 #include "NextLifeBrainComponent.generated.h"
-
-DECLARE_DYNAMIC_DELEGATE_RetVal_OneParam(bool, FNLBehaviorChooser, class UNLBehavior*, BehaviorToAssess);
-
-USTRUCT(BlueprintType)
-struct FNLBehaviorHolder
-{
-	GENERATED_BODY()
-	FNLBehaviorHolder()
-		: Behavior(nullptr)
-	{}
-
-	UPROPERTY(BlueprintReadOnly, Category = "Behavior Holder")
-	class UNLBehavior* Behavior;
-
-	UPROPERTY()
-	FNLBehaviorChooser Chooser;
-};
 
 /**
  * NextLife Brain Component
@@ -33,29 +20,24 @@ class NEXTLIFE_API UNextLifeBrainComponent : public UBrainComponent
 public:
 	UNextLifeBrainComponent();
 
-	// Should this brain automatically hook up events to behaviors for pawn sensing so events
-	// such as sight, hearing, touch will fire when these events happen to the pawn?
-	// It can be useful to handle these events manually so you can control the information being fed to the AI.
-	// NOTE: For sight and hearing, the pawn must contain a PawnSensingComponent
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Brain")
-	bool AutoHookUpSenses;
-
 	// If true, all behavior state will be logged. Actions starting, updating, changing, suspending, ending, etc...
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Brain")
 	bool LogState;
 	
 	// Add a behavior to this brain
 	UFUNCTION(BlueprintCallable, Category = "NextLife|Brain")
-	bool AddBehavior(TSubclassOf<class UNLBehavior> behaviorClass, FNLBehaviorChooser chooser);
+	bool AddBehavior(TSubclassOf<class UNLBehavior> behaviorClass);
 
 	// Remove a behavior from this brain
 	UFUNCTION(BlueprintCallable, Category = "NextLife|Brain")
 	bool RemoveBehavior(TSubclassOf<class UNLBehavior> behaviorClass);
 
-	// Called when choosing behaviors to run this frame. By default, uses the supplied conditional delegate to determine which behaviors to run.
-	// You can override this to control which behaviors are choosen to run with more complex logic.
 	UFUNCTION(BlueprintNativeEvent, Category = "NextLife|Brain")
-	void ChooseBehaviors(TArray<class UNLBehavior*>& behaviorsOut);
+	bool ShouldChooseBehavior(class UNLBehavior* behaviorToAssess);
+	virtual bool ShouldChooseBehavior_Implementation(class UNLBehavior* behaviorToAssess) { return true; }
+
+	// Ticks all behaviors currently active
+	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 
 	/** Starts brain logic. If brain is already running, will not do anything. */
 	virtual void StartLogic() override;
@@ -81,13 +63,44 @@ public:
 	virtual bool IsRunning() const override;
 	virtual bool IsPaused() const override;
 
+	/**
+	* INLGeneralEvents Implementation
+	*/
+	void General_Message(UNLGeneralMessage* message);
+
+	/**
+	* INLInflictionEvents Implementation
+	*/
+	void Infliction_TakeDamage(const float Damage,
+																struct FDamageEvent const& DamageEvent,
+																const AController* EventInstigator,
+																const AActor* DamageCauser);
+	
+	/**
+	* INLSensingEvents Implementation
+	*/
+	void Sense_Sight(APawn* subject, bool indirect);
+	void Sense_SightLost(APawn* subject);
+	void Sense_Sound(APawn *OtherActor, const FVector &Location, float Volume, int32 flags);
+	void Sense_Contact(AActor* other, const FHitResult& hitResult);
+
+	/**
+	* INLMovementEvents Implementation
+	*/
+	void Movement_MoveTo(const AActor *goal, const FVector &pos, float range);
+	void Movement_MoveToComplete(FAIRequestID RequestID);
+	
 protected:
+
+	// Called when choosing behaviors to run this frame. By default, uses the supplied conditional delegate to determine which behaviors to run.
+	// You can override this to control which behaviors are choosen to run with more complex logic.
+	void ChooseBehaviors(TArray<int32>& behaviorsOut);
 
 	UFUNCTION()
 	void OnBehaviorComplete(class UNLBehavior* completeBehavior);
 
 	UPROPERTY(BlueprintReadOnly, Category = "NextLife|Brain")
-	TArray<FNLBehaviorHolder> Behaviors;
+	TArray<class UNLBehavior*> Behaviors;
 
 	UPROPERTY()
 	TArray<TSubclassOf<class UNLBehavior>> ActiveBehaviorClasses;

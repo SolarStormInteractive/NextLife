@@ -21,7 +21,7 @@ UNLBehavior::UNLBehavior()
 void UNLBehavior::BeginDestroy()
 {
 	Super::BeginDestroy();
-	EndBehavior();
+	StopBehavior(true);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -106,7 +106,7 @@ void UNLBehavior::RunBehavior(float deltaSeconds)
 //---------------------------------------------------------------------------------------------------------------------
 /**
 */
-void UNLBehavior::EndBehavior()
+void UNLBehavior::StopBehavior(bool callBehaviorEnded)
 {
 	if(!Action || !Action->HasStarted)
 	{
@@ -128,7 +128,10 @@ void UNLBehavior::EndBehavior()
 	// GC will get all the actions
 	Action = nullptr;
 
-	OnBehaviorEnded.Broadcast(this);
+	if(callBehaviorEnded)
+	{
+		OnBehaviorEnded.Broadcast(this);
+	}
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -441,22 +444,53 @@ UNLGeneralMessage* UNLBehavior::CreateGeneralMessage(TSubclassOf<UNLGeneralMessa
 FNLEventResponse UNLBehavior::General_Message_Implementation(UNLGeneralMessage* message)
 {
 	FNLEventResponse responseOut;
-	UNLAction* curAction = Action;
-	while(curAction)
-    {
-    	if(curAction->Implements<UNLGeneralEvents>())
-    	{
-    		responseOut = INLGeneralEvents::Execute_General_Message(curAction, message);
-    		if(HandleEventResponse(curAction, TEXT("General_Message"), responseOut))
-    		{
-    			break;
-    		}
-    	}
+	if(!AreEventsPaused())
+	{
+		UNLAction* curAction = Action;
+		while(curAction)
+		{
+			if(curAction->Implements<UNLGeneralEvents>())
+			{
+				responseOut = INLGeneralEvents::Execute_General_Message(curAction, message);
+				if(HandleEventResponse(curAction, TEXT("General_Message"), responseOut))
+				{
+					break;
+				}
+			}
 
-		curAction = curAction->PreviousAction;
-    }
-
+			curAction = curAction->PreviousAction;
+		}
+	}
     return responseOut;
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+/**
+*/
+FNLEventResponse UNLBehavior::Infliction_TakeDamage_Implementation(const float Damage,
+																   FDamageEvent const& DamageEvent,
+																   const AController* EventInstigator,
+																   const AActor* DamageCauser)
+{
+	FNLEventResponse responseOut;
+	if(!AreEventsPaused())
+	{
+		UNLAction* curAction = Action;
+		while(curAction)
+		{
+			if(curAction->Implements<UNLInflictionEvents>())
+			{
+				responseOut = INLInflictionEvents::Execute_Infliction_TakeDamage(curAction, Damage, DamageEvent, EventInstigator, DamageCauser);
+				if(HandleEventResponse(curAction, TEXT("Infliction_TakeDamage"), responseOut))
+				{
+					break;
+				}
+			}
+
+			curAction = curAction->PreviousAction;
+		}
+	}
+	return responseOut;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -465,21 +499,23 @@ FNLEventResponse UNLBehavior::General_Message_Implementation(UNLGeneralMessage* 
 FNLEventResponse UNLBehavior::Sense_Sight_Implementation(APawn* subject, bool indirect)
 {
 	FNLEventResponse responseOut;
-	UNLAction* curAction = Action;
-	while(curAction)
+	if(!AreEventsPaused())
 	{
-		if(curAction->Implements<UNLSensingEvents>())
+		UNLAction* curAction = Action;
+		while(curAction)
 		{
-			responseOut = INLSensingEvents::Execute_Sense_Sight(curAction, subject, indirect);
-			if(HandleEventResponse(curAction, TEXT("Sense_Sight"), responseOut))
+			if(curAction->Implements<UNLSensingEvents>())
 			{
-				break;
+				responseOut = INLSensingEvents::Execute_Sense_Sight(curAction, subject, indirect);
+				if(HandleEventResponse(curAction, TEXT("Sense_Sight"), responseOut))
+				{
+					break;
+				}
 			}
+
+			curAction = curAction->PreviousAction;
 		}
-
-		curAction = curAction->PreviousAction;
 	}
-
 	return responseOut;
 }
 
@@ -489,21 +525,23 @@ FNLEventResponse UNLBehavior::Sense_Sight_Implementation(APawn* subject, bool in
 FNLEventResponse UNLBehavior::Sense_SightLost_Implementation(APawn* subject)
 {
 	FNLEventResponse responseOut;
-	UNLAction* curAction = Action;
-	while(curAction)
+	if(!AreEventsPaused())
 	{
-		if(curAction->Implements<UNLSensingEvents>())
+		UNLAction* curAction = Action;
+		while(curAction)
 		{
-			responseOut = INLSensingEvents::Execute_Sense_SightLost(curAction, subject);
-			if(HandleEventResponse(curAction, TEXT("Sense_SightLost"), responseOut))
+			if(curAction->Implements<UNLSensingEvents>())
 			{
-				break;
+				responseOut = INLSensingEvents::Execute_Sense_SightLost(curAction, subject);
+				if(HandleEventResponse(curAction, TEXT("Sense_SightLost"), responseOut))
+				{
+					break;
+				}
 			}
+
+			curAction = curAction->PreviousAction;
 		}
-
-		curAction = curAction->PreviousAction;
 	}
-
 	return responseOut;
 }
 
@@ -513,21 +551,23 @@ FNLEventResponse UNLBehavior::Sense_SightLost_Implementation(APawn* subject)
 FNLEventResponse UNLBehavior::Sense_Sound_Implementation(APawn* OtherActor, const FVector& Location, float Volume, int32 flags)
 {
 	FNLEventResponse responseOut;
-	UNLAction* curAction = Action;
-	while(curAction)
+	if(!AreEventsPaused())
 	{
-		if(curAction->Implements<UNLSensingEvents>())
+		UNLAction* curAction = Action;
+		while(curAction)
 		{
-			responseOut = INLSensingEvents::Execute_Sense_Sound(curAction, OtherActor, Location, Volume, flags);
-			if(HandleEventResponse(curAction, TEXT("Sense_Sound"), responseOut))
+			if(curAction->Implements<UNLSensingEvents>())
 			{
-				break;
+				responseOut = INLSensingEvents::Execute_Sense_Sound(curAction, OtherActor, Location, Volume, flags);
+				if(HandleEventResponse(curAction, TEXT("Sense_Sound"), responseOut))
+				{
+					break;
+				}
 			}
+
+			curAction = curAction->PreviousAction;
 		}
-
-		curAction = curAction->PreviousAction;
 	}
-
 	return responseOut;
 }
 
@@ -537,21 +577,23 @@ FNLEventResponse UNLBehavior::Sense_Sound_Implementation(APawn* OtherActor, cons
 FNLEventResponse UNLBehavior::Sense_Contact_Implementation(AActor* other, const FHitResult& hitResult)
 {
 	FNLEventResponse responseOut;
-	UNLAction* curAction = Action;
-	while(curAction)
+	if(!AreEventsPaused())
 	{
-		if(curAction->Implements<UNLSensingEvents>())
+		UNLAction* curAction = Action;
+		while(curAction)
 		{
-			responseOut = INLSensingEvents::Execute_Sense_Contact(curAction, other, hitResult);
-			if(HandleEventResponse(curAction, TEXT("Sense_Contact"), responseOut))
+			if(curAction->Implements<UNLSensingEvents>())
 			{
-				break;
+				responseOut = INLSensingEvents::Execute_Sense_Contact(curAction, other, hitResult);
+				if(HandleEventResponse(curAction, TEXT("Sense_Contact"), responseOut))
+				{
+					break;
+				}
 			}
+
+			curAction = curAction->PreviousAction;
 		}
-
-		curAction = curAction->PreviousAction;
 	}
-
 	return responseOut;
 }
 
@@ -561,21 +603,23 @@ FNLEventResponse UNLBehavior::Sense_Contact_Implementation(AActor* other, const 
 FNLEventResponse UNLBehavior::Movement_MoveTo_Implementation(const AActor* goal, const FVector& pos, float range)
 {
 	FNLEventResponse responseOut;
-	UNLAction* curAction = Action;
-	while(curAction)
+	if(!AreEventsPaused())
 	{
-		if(curAction->Implements<UNLSensingEvents>())
+		UNLAction* curAction = Action;
+		while(curAction)
 		{
-			responseOut = INLMovementEvents::Execute_Movement_MoveTo(curAction, goal, pos, range);
-			if(HandleEventResponse(curAction, TEXT("Movement_MoveTo"), responseOut))
+			if(curAction->Implements<UNLMovementEvents>())
 			{
-				break;
+				responseOut = INLMovementEvents::Execute_Movement_MoveTo(curAction, goal, pos, range);
+				if(HandleEventResponse(curAction, TEXT("Movement_MoveTo"), responseOut))
+				{
+					break;
+				}
 			}
+
+			curAction = curAction->PreviousAction;
 		}
-
-		curAction = curAction->PreviousAction;
 	}
-
 	return responseOut;
 }
 
@@ -585,20 +629,22 @@ FNLEventResponse UNLBehavior::Movement_MoveTo_Implementation(const AActor* goal,
 FNLEventResponse UNLBehavior::Movement_MoveToComplete_Implementation(FAIRequestID RequestID)
 {
 	FNLEventResponse responseOut;
-	UNLAction* curAction = Action;
-	while(curAction)
+	if(!AreEventsPaused())
 	{
-		if(curAction->Implements<UNLSensingEvents>())
+		UNLAction* curAction = Action;
+		while(curAction)
 		{
-			responseOut = INLMovementEvents::Execute_Movement_MoveToComplete(curAction, RequestID);
-			if(HandleEventResponse(curAction, TEXT("Movement_MoveToComplete"), responseOut))
+			if(curAction->Implements<UNLMovementEvents>())
 			{
-				break;
+				responseOut = INLMovementEvents::Execute_Movement_MoveToComplete(curAction, RequestID);
+				if(HandleEventResponse(curAction, TEXT("Movement_MoveToComplete"), responseOut))
+				{
+					break;
+				}
 			}
+
+			curAction = curAction->PreviousAction;
 		}
-
-		curAction = curAction->PreviousAction;
 	}
-
 	return responseOut;
 }

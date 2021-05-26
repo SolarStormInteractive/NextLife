@@ -15,12 +15,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNLOnBehaviorEnded, class UNLBehavio
 
 //---------------------------------------------------------------------------------------------------------------------
 /**
- * Base Behavior : The base behavior of a NextLife AI. This should be extended to fit the behavior of the AI you are trying to create.
- * See example behaviors in the Behaviors folder.
- * How it all works:
- * A behavior is how an AI should act under certain circumstances. It may be as simple as how the AI acts while idle.
+ * Base Behavior
+ * Maintains an action stack, propgates events to actions.
 */
-UCLASS(Blueprintable)
+UCLASS(Blueprintable, Abstract)
 class NEXTLIFE_API UNLBehavior : public UObject
 							   , public INLGeneralEvents
 							   , public INLInflictionEvents
@@ -69,8 +67,18 @@ public:
 		return EventsPaused;
 	}
 
-	// Ends the behavior. Tears down the action stack gracefully by ending each action.
-	void EndBehavior();
+	// Returns true if the behavior has begun
+	UFUNCTION(BlueprintPure, Category = "NextLife|Behavior")
+	FORCEINLINE bool HasBehaviorBegun() const
+	{
+		return Action != nullptr;
+	}
+
+	/**
+	 * Stops the behavior. Tears down the action stack gracefully by ending each action. Acts like the behavior ended if callBehaviorEnded is true.
+	 * @param callBehaviorEnded - Should this call fire the OnBehaviorEnded event?
+	 */
+	void StopBehavior(bool callBehaviorEnded);
 
 	// Helper function to create a basic general message with a name assigned.
 	// It would be cleaner to instead create message classes derived from UNLGeneralMessage
@@ -87,6 +95,14 @@ public:
 	* INLGeneralEvents Implementation
 	*/
 	virtual FNLEventResponse General_Message_Implementation(UNLGeneralMessage* message) override;
+
+	/**
+	* INLInflictionEvents Implementation
+	*/
+	virtual FNLEventResponse Infliction_TakeDamage_Implementation(const float Damage,
+																struct FDamageEvent const& DamageEvent,
+																const AController* EventInstigator,
+																const AActor* DamageCauser) override;
 	
 	/**
 	* INLSensingEvents Implementation

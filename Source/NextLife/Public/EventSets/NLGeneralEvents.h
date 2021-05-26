@@ -41,7 +41,7 @@ public:
 	 * This can contain any information needed for the AI that is game specific and can cause changes to the behaviors
 	 * action stack.
 	*/
-	UFUNCTION(BlueprintNativeEvent, Category="NextLife|SensingEvents")
+	UFUNCTION(BlueprintNativeEvent, Category="NextLife|GeneralEvents")
 	FNLEventResponse General_Message(UNLGeneralMessage* message);
 	virtual FNLEventResponse General_Message_Implementation(UNLGeneralMessage* message) { return FNLEventResponse(); };
 };

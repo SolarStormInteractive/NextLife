@@ -8,8 +8,7 @@
 /**
 */
 UNextLifeBrainComponent::UNextLifeBrainComponent()
-	: AutoHookUpSenses(true)
-	, LogState(false)
+	: LogState(false)
 	, AreBehaviorsPaused(false)
 	, LogicIsStarted(false)
 {
@@ -18,25 +17,14 @@ UNextLifeBrainComponent::UNextLifeBrainComponent()
 //---------------------------------------------------------------------------------------------------------------------
 /**
 */
-bool UNextLifeBrainComponent::AddBehavior(TSubclassOf<UNLBehavior> behaviorClass, FNLBehaviorChooser chooser)
+bool UNextLifeBrainComponent::AddBehavior(TSubclassOf<UNLBehavior> behaviorClass)
 {
 	if(!ActiveBehaviorClasses.Contains(behaviorClass))
 	{
-		UNLBehavior* newBehavior;
-		{
-			FNLBehaviorHolder newHolder;
-			newBehavior = NewObject<UNLBehavior>(this, behaviorClass);
-			newHolder.Behavior = newBehavior;
-			newHolder.Chooser = chooser;
-			Behaviors.Add(newHolder);
-			ActiveBehaviorClasses.Add(behaviorClass);
-			newBehavior->OnBehaviorEnded.AddDynamic(this, &UNextLifeBrainComponent::OnBehaviorComplete);
-		}
-		if(newBehavior && LogicIsStarted)
-		{
-			// Beginning could cause an end.
-			newBehavior->BeginBehavior();
-		}
+		UNLBehavior* newBehavior = NewObject<UNLBehavior>(this, behaviorClass);
+		Behaviors.Add(newBehavior);
+		ActiveBehaviorClasses.Add(behaviorClass);
+		newBehavior->OnBehaviorEnded.AddDynamic(this, &UNextLifeBrainComponent::OnBehaviorComplete);
 		return true;
 	}
 
@@ -53,10 +41,10 @@ bool UNextLifeBrainComponent::RemoveBehavior(TSubclassOf<UNLBehavior> behaviorCl
 	{
 		ActiveBehaviorClasses.RemoveAt(classIndex);
 		check(Behaviors.IsValidIndex(classIndex));
-		check(Behaviors[classIndex].Behavior);
+		check(Behaviors[classIndex]);
 		if(LogicIsStarted)
 		{
-			Behaviors[classIndex].Behavior->EndBehavior();
+			Behaviors[classIndex]->StopBehavior(true);
 		}
 		Behaviors.RemoveAt(classIndex);
 		return true;
@@ -68,13 +56,59 @@ bool UNextLifeBrainComponent::RemoveBehavior(TSubclassOf<UNLBehavior> behaviorCl
 //---------------------------------------------------------------------------------------------------------------------
 /**
 */
-void UNextLifeBrainComponent::ChooseBehaviors_Implementation(TArray<class UNLBehavior*>& behaviorsOut)
+void UNextLifeBrainComponent::ChooseBehaviors(TArray<int32>& behaviorsOut)
 {
-	for(const FNLBehaviorHolder& holder : Behaviors)
+	int32 behaviorIndex = 0;
+	for(UNLBehavior*& behavior : Behaviors)
 	{
-		if(!holder.Chooser.IsBound() || holder.Chooser.Execute(holder.Behavior))
+		if(ShouldChooseBehavior(behavior))
 		{
-			behaviorsOut.Add(holder.Behavior);
+			behaviorsOut.Add(behaviorIndex);
+		}
+		++behaviorIndex;
+	}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+/**
+*/
+void UNextLifeBrainComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	TArray<int32> behaviorsToRun;
+	ChooseBehaviors(behaviorsToRun);
+
+	// Stop any behaviors which shouldn't be running right now first
+	for(int32 behaviorIndex = Behaviors.Num() - 1; behaviorIndex >= 0; --behaviorIndex)
+	{
+		check(Behaviors[behaviorIndex]);
+		if(!behaviorsToRun.Contains(behaviorIndex))
+		{
+			// If behavior was running, we should reset it
+			if(Behaviors[behaviorIndex]->HasBehaviorBegun())
+			{
+				Behaviors[behaviorIndex]->StopBehavior(false);
+			}
+		}
+	}
+
+	// Run behaviors which should be active
+	for(int32 behaviorIndex = Behaviors.Num() - 1; behaviorIndex >= 0; --behaviorIndex)
+	{
+		check(Behaviors[behaviorIndex]);
+		if(behaviorsToRun.Contains(behaviorIndex))
+		{
+			if(!Behaviors[behaviorIndex]->HasBehaviorBegun())
+			{
+				// Start it up
+				Behaviors[behaviorIndex]->BeginBehavior();
+			}
+			else
+			{
+				// Run it
+				Behaviors[behaviorIndex]->RunBehavior(DeltaTime);
+			}
 		}
 	}
 }
@@ -84,18 +118,7 @@ void UNextLifeBrainComponent::ChooseBehaviors_Implementation(TArray<class UNLBeh
 */
 void UNextLifeBrainComponent::StartLogic()
 {
-	if(!LogicIsStarted)
-	{
-		LogicIsStarted = true;
-		// Need to iterate backwards because starting behaviors could end them
-		for(int32 behaviorIndex = Behaviors.Num() - 1; behaviorIndex >= 0; --behaviorIndex)
-		{
-			if(Behaviors[behaviorIndex].Behavior)
-			{
-				Behaviors[behaviorIndex].Behavior->BeginBehavior();
-			}
-		}
-	}
+	LogicIsStarted = true;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -103,32 +126,8 @@ void UNextLifeBrainComponent::StartLogic()
 */
 void UNextLifeBrainComponent::RestartLogic()
 {
-	if(LogicIsStarted)
-	{
-		// End the current behaviors and store the info to restart them
-		TArray<TSubclassOf<UNLBehavior>> behaviorsToRestart;
-		TArray<FNLBehaviorChooser> choosers;
-		for(int32 behaviorIndex = Behaviors.Num() - 1; behaviorIndex >= 0; --behaviorIndex)
-		{
-			if(Behaviors[behaviorIndex].Behavior)
-			{
-				behaviorsToRestart.Add(Behaviors[behaviorIndex].Behavior->GetClass());
-				choosers.Add(Behaviors[behaviorIndex].Chooser);
-				Behaviors[behaviorIndex].Behavior->EndBehavior();
-			}
-		}
-
-		// Restart the behaviors which were ended
-		for(int32 behaviorIndex = 0; behaviorIndex < behaviorsToRestart.Num(); ++behaviorIndex)
-		{
-			AddBehavior(behaviorsToRestart[behaviorIndex], choosers[behaviorIndex]);
-		}
-	}
-	else
-	{
-		// Was never started so just start it
-		StartLogic();
-	}
+	StopLogic(TEXT("Restarting Logic"));
+	StartLogic();
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -140,9 +139,9 @@ void UNextLifeBrainComponent::StopLogic(const FString& Reason)
 	{
 		for(int32 behaviorIndex = Behaviors.Num() - 1; behaviorIndex >= 0; --behaviorIndex)
 		{
-			if(Behaviors[behaviorIndex].Behavior)
+			if(Behaviors[behaviorIndex])
 			{
-				Behaviors[behaviorIndex].Behavior->EndBehavior();
+				Behaviors[behaviorIndex]->StopBehavior(true);
 			}
 		}
 		LogicIsStarted = false;
@@ -156,11 +155,11 @@ void UNextLifeBrainComponent::Cleanup()
 {
 	if(LogicIsStarted)
 	{
-		for(const FNLBehaviorHolder& holder : Behaviors)
+		for(UNLBehavior*& behavior : Behaviors)
 		{
-			if(holder.Behavior)
+			if(behavior)
 			{
-				holder.Behavior->EndBehavior();
+				behavior->StopBehavior(true);
 			}
 		}
 		LogicIsStarted = false;
@@ -173,11 +172,11 @@ void UNextLifeBrainComponent::Cleanup()
 void UNextLifeBrainComponent::PauseLogic(const FString& Reason)
 {
 	AreBehaviorsPaused = true;
-	for(const FNLBehaviorHolder& holder : Behaviors)
+	for(UNLBehavior*& behavior : Behaviors)
 	{
-		if(holder.Behavior)
+		if(behavior)
 		{
-			holder.Behavior->SetEventsPausedState(true);
+			behavior->SetEventsPausedState(true);
 		}
 	}
 }
@@ -188,11 +187,11 @@ void UNextLifeBrainComponent::PauseLogic(const FString& Reason)
 EAILogicResuming::Type UNextLifeBrainComponent::ResumeLogic(const FString& Reason)
 {
 	AreBehaviorsPaused = false;
-	for(const FNLBehaviorHolder& holder : Behaviors)
+	for(UNLBehavior*& behavior : Behaviors)
 	{
-		if(holder.Behavior)
+		if(behavior)
 		{
-			holder.Behavior->SetEventsPausedState(false);
+			behavior->SetEventsPausedState(false);
 		}
 	}
 	return EAILogicResuming::Continue;
@@ -226,7 +225,121 @@ void UNextLifeBrainComponent::OnBehaviorComplete(UNLBehavior* completeBehavior)
 	{
 		ActiveBehaviorClasses.RemoveAt(classIndex);
 		check(Behaviors.IsValidIndex(classIndex));
-		check(Behaviors[classIndex].Behavior);
+		check(Behaviors[classIndex]);
 		Behaviors.RemoveAt(classIndex);
+	}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+/**
+*/
+void UNextLifeBrainComponent::General_Message(UNLGeneralMessage* message)
+{
+	for(UNLBehavior*& behavior : Behaviors)
+	{
+		if(behavior && behavior->HasBehaviorBegun())
+		{
+			behavior->Execute_General_Message(behavior, message);
+		}
+	}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+/**
+*/
+void UNextLifeBrainComponent::Infliction_TakeDamage(const float Damage,
+	FDamageEvent const& DamageEvent, const AController* EventInstigator, const AActor* DamageCauser)
+{
+	for(UNLBehavior*& behavior : Behaviors)
+	{
+		if(behavior && behavior->HasBehaviorBegun())
+		{
+			behavior->Execute_Infliction_TakeDamage(behavior, Damage, DamageEvent, EventInstigator, DamageCauser);
+		}
+	}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+/**
+*/
+void UNextLifeBrainComponent::Sense_Sight(APawn* subject, bool indirect)
+{
+	for(UNLBehavior*& behavior : Behaviors)
+	{
+		if(behavior && behavior->HasBehaviorBegun())
+		{
+			behavior->Execute_Sense_Sight(behavior, subject, indirect);
+		}
+	}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+/**
+*/
+void UNextLifeBrainComponent::Sense_SightLost(APawn* subject)
+{
+	for(UNLBehavior*& behavior : Behaviors)
+	{
+		if(behavior && behavior->HasBehaviorBegun())
+		{
+			behavior->Execute_Sense_SightLost(behavior, subject);
+		}
+	}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+/**
+*/
+void UNextLifeBrainComponent::Sense_Sound(APawn* OtherActor, const FVector& Location,
+	float Volume, int32 flags)
+{
+	for(UNLBehavior*& behavior : Behaviors)
+	{
+		if(behavior && behavior->HasBehaviorBegun())
+		{
+			behavior->Execute_Sense_Sound(behavior, OtherActor, Location, Volume, flags);
+		}
+	}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+/**
+*/
+void UNextLifeBrainComponent::Sense_Contact(AActor* other, const FHitResult& hitResult)
+{
+	for(UNLBehavior*& behavior : Behaviors)
+	{
+		if(behavior && behavior->HasBehaviorBegun())
+		{
+			behavior->Execute_Sense_Contact(behavior, other, hitResult);
+		}
+	}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+/**
+*/
+void UNextLifeBrainComponent::Movement_MoveTo(const AActor* goal, const FVector& pos, float range)
+{
+	for(UNLBehavior*& behavior : Behaviors)
+	{
+		if(behavior && behavior->HasBehaviorBegun())
+		{
+			behavior->Execute_Movement_MoveTo(behavior, goal, pos, range);
+		}
+	}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+/**
+*/
+void UNextLifeBrainComponent::Movement_MoveToComplete(FAIRequestID RequestID)
+{
+	for(UNLBehavior*& behavior : Behaviors)
+	{
+		if(behavior && behavior->HasBehaviorBegun())
+		{
+			behavior->Execute_Movement_MoveToComplete(behavior, RequestID);
+		}
 	}
 }

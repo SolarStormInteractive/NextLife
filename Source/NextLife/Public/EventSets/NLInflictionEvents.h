@@ -22,4 +22,15 @@ class NEXTLIFE_API INLInflictionEvents
 public:
     GENERATED_BODY()
 
+	/** General Take Damage Event, like Actors generically receive */
+	UFUNCTION(BlueprintNativeEvent, Category="NextLife|InflictionEvents")
+	FNLEventResponse Infliction_TakeDamage(const float Damage,
+										   struct FDamageEvent const& DamageEvent,
+										   const AController* EventInstigator,
+										   const AActor* DamageCauser);
+	virtual FNLEventResponse Infliction_TakeDamage_Implementation(const float Damage,
+																  struct FDamageEvent const& DamageEvent,
+																  const AController* EventInstigator,
+																  const AActor* DamageCauser)
+	{ return FNLEventResponse(); };
 };
