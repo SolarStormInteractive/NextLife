@@ -52,6 +52,27 @@ float UNLBehavior::GetWorldTimeSeconds() const
 //---------------------------------------------------------------------------------------------------------------------
 /**
 */
+bool UNLBehavior::GetActionStack(TArray<UNLAction*>& actionStackOut) const
+{
+	actionStackOut.Reset(20);
+	if(!Action)
+	{
+		return false;
+	}
+
+	UNLAction* nextAction = Action;
+	while(nextAction)
+	{
+		actionStackOut.Add(nextAction);
+		nextAction = nextAction->PreviousAction;
+	}
+
+	return true;
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+/**
+*/
 void UNLBehavior::BeginBehavior()
 {
 	if(!InitialActionClass)
@@ -484,35 +505,6 @@ FNLEventResponse UNLBehavior::General_Message_Implementation(UNLGeneralMessage* 
 //---------------------------------------------------------------------------------------------------------------------
 /**
 */
-FNLEventResponse UNLBehavior::Infliction_TakeDamage_Implementation(const float Damage,
-																   FDamageEvent const& DamageEvent,
-																   const AController* EventInstigator,
-																   const AActor* DamageCauser)
-{
-	FNLEventResponse responseOut;
-	if(!AreEventsPaused())
-	{
-		UNLAction* curAction = Action;
-		while(curAction)
-		{
-			if(curAction->Implements<UNLInflictionEvents>())
-			{
-				responseOut = INLInflictionEvents::Execute_Infliction_TakeDamage(curAction, Damage, DamageEvent, EventInstigator, DamageCauser);
-				if(HandleEventResponse(curAction, TEXT("Infliction_TakeDamage"), responseOut))
-				{
-					break;
-				}
-			}
-
-			curAction = curAction->PreviousAction;
-		}
-	}
-	return responseOut;
-}
-
-//---------------------------------------------------------------------------------------------------------------------
-/**
-*/
 FNLEventResponse UNLBehavior::Sense_Sight_Implementation(APawn* subject, bool indirect)
 {
 	FNLEventResponse responseOut;
@@ -643,7 +635,7 @@ FNLEventResponse UNLBehavior::Movement_MoveTo_Implementation(const AActor* goal,
 //---------------------------------------------------------------------------------------------------------------------
 /**
 */
-FNLEventResponse UNLBehavior::Movement_MoveToComplete_Implementation(FAIRequestID RequestID)
+FNLEventResponse UNLBehavior::Movement_MoveToComplete_Implementation(FAIRequestID RequestID, const EPathFollowingResult::Type Result)
 {
 	FNLEventResponse responseOut;
 	if(!AreEventsPaused())
@@ -653,7 +645,7 @@ FNLEventResponse UNLBehavior::Movement_MoveToComplete_Implementation(FAIRequestI
 		{
 			if(curAction->Implements<UNLMovementEvents>())
 			{
-				responseOut = INLMovementEvents::Execute_Movement_MoveToComplete(curAction, RequestID);
+				responseOut = INLMovementEvents::Execute_Movement_MoveToComplete(curAction, RequestID, Result);
 				if(HandleEventResponse(curAction, TEXT("Movement_MoveToComplete"), responseOut))
 				{
 					break;

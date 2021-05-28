@@ -3,7 +3,8 @@
 #pragma once
 
 #include "NLTypes.h"
-#include "AITypes.h"
+#include "AIModule\Classes\AITypes.h"
+#include "AIModule\Classes\Navigation\PathFollowingComponent.h"
 #include "NLMovementEvents.generated.h"
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -36,6 +37,6 @@ public:
 	 * Event letting the AI know a movement was completed
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category="NextLife|MovementEvents")
-	FNLEventResponse Movement_MoveToComplete(FAIRequestID RequestID);
-	virtual FNLEventResponse Movement_MoveToComplete_Implementation(FAIRequestID RequestID) { return FNLEventResponse(); }
+	FNLEventResponse Movement_MoveToComplete(FAIRequestID RequestID, const EPathFollowingResult::Type Result);
+	virtual FNLEventResponse Movement_MoveToComplete_Implementation(FAIRequestID RequestID, const EPathFollowingResult::Type Result) { return FNLEventResponse(); }
 };

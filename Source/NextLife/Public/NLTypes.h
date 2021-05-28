@@ -4,6 +4,15 @@
 
 #include "NLTypes.generated.h"
 
+/**
+* Base action payload
+*/
+UCLASS(Blueprintable)
+class NEXTLIFE_API UNLActionPayload : public UObject
+{
+	GENERATED_BODY()
+};
+
 //----------------------------------------------------------------------------------------------------------------------
 /**
  * The different action changes which can occur, including a NONE which means no change (used to move on)

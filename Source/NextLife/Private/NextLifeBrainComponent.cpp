@@ -247,21 +247,6 @@ void UNextLifeBrainComponent::General_Message(UNLGeneralMessage* message)
 //---------------------------------------------------------------------------------------------------------------------
 /**
 */
-void UNextLifeBrainComponent::Infliction_TakeDamage(const float Damage,
-	FDamageEvent const& DamageEvent, const AController* EventInstigator, const AActor* DamageCauser)
-{
-	for(UNLBehavior*& behavior : Behaviors)
-	{
-		if(behavior && behavior->HasBehaviorBegun())
-		{
-			behavior->Execute_Infliction_TakeDamage(behavior, Damage, DamageEvent, EventInstigator, DamageCauser);
-		}
-	}
-}
-
-//---------------------------------------------------------------------------------------------------------------------
-/**
-*/
 void UNextLifeBrainComponent::Sense_Sight(APawn* subject, bool indirect)
 {
 	for(UNLBehavior*& behavior : Behaviors)
@@ -333,13 +318,13 @@ void UNextLifeBrainComponent::Movement_MoveTo(const AActor* goal, const FVector&
 //---------------------------------------------------------------------------------------------------------------------
 /**
 */
-void UNextLifeBrainComponent::Movement_MoveToComplete(FAIRequestID RequestID)
+void UNextLifeBrainComponent::Movement_MoveToComplete(FAIRequestID RequestID, const EPathFollowingResult::Type Result)
 {
 	for(UNLBehavior*& behavior : Behaviors)
 	{
 		if(behavior && behavior->HasBehaviorBegun())
 		{
-			behavior->Execute_Movement_MoveToComplete(behavior, RequestID);
+			behavior->Execute_Movement_MoveToComplete(behavior, RequestID, Result);
 		}
 	}
 }

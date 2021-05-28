@@ -4,7 +4,6 @@
 
 // Baseline event sets
 #include "EventSets/NLGeneralEvents.h"
-#include "EventSets/NLInflictionEvents.h"
 #include "EventSets/NLSensingEvents.h"
 #include "EventSets/NLMovementEvents.h"
 
@@ -35,7 +34,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNLOnBehaviorEnded, class UNLBehavio
 UCLASS(Blueprintable, Abstract)
 class NEXTLIFE_API UNLBehavior : public UObject
 							   , public INLGeneralEvents
-							   , public INLInflictionEvents
 							   , public INLSensingEvents
 							   , public INLMovementEvents
 {
@@ -59,6 +57,14 @@ public:
 	// Gets the world time associated with the AI being driven by this behavior
 	UFUNCTION(BlueprintPure, Category = "NextLife|Behavior")
 	float GetWorldTimeSeconds() const;
+
+	/**
+	 * Puts together the current action stack into an array
+	 * Return true if the stack is valid (Behavior has begun and had an initial action)
+	 * The returned array is ordered as the first action first, the current active action last
+	 */
+	UFUNCTION(BlueprintPure, Category = "NextLife|Behavior")
+	bool GetActionStack(TArray<class UNLAction*>& actionStackOut) const;
 
 	// Begins this behavior (creates the initial action and starts it, possibly causing a chain reaction of actions to stack).
 	void BeginBehavior();
@@ -109,14 +115,6 @@ public:
 	* INLGeneralEvents Implementation
 	*/
 	virtual FNLEventResponse General_Message_Implementation(UNLGeneralMessage* message) override;
-
-	/**
-	* INLInflictionEvents Implementation
-	*/
-	virtual FNLEventResponse Infliction_TakeDamage_Implementation(const float Damage,
-																struct FDamageEvent const& DamageEvent,
-																const AController* EventInstigator,
-																const AActor* DamageCauser) override;
 	
 	/**
 	* INLSensingEvents Implementation
@@ -130,7 +128,7 @@ public:
 	* INLMovementEvents Implementation
 	*/
 	virtual FNLEventResponse Movement_MoveTo_Implementation(const AActor *goal, const FVector &pos, float range) override;
-	virtual FNLEventResponse Movement_MoveToComplete_Implementation(FAIRequestID RequestID) override;
+	virtual FNLEventResponse Movement_MoveToComplete_Implementation(FAIRequestID RequestID, const EPathFollowingResult::Type Result) override;
 
 protected:
 

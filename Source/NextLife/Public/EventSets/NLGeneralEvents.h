@@ -7,8 +7,9 @@
 
 // A generic message which can be sent to the AI.
 // These are useful for game specific events about the AI such as "I was lit on fire"
+// They derive from an action payload so they can be used for inputs as a message, but continue as a payload to a suspend.
 UCLASS(BlueprintType, Blueprintable)
-class UNLGeneralMessage : public UObject
+class NEXTLIFE_API UNLGeneralMessage : public UNLActionPayload
 {
 	GENERATED_BODY()
 public:

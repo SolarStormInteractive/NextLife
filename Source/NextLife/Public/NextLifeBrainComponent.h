@@ -67,14 +67,6 @@ public:
 	* INLGeneralEvents Implementation
 	*/
 	void General_Message(UNLGeneralMessage* message);
-
-	/**
-	* INLInflictionEvents Implementation
-	*/
-	void Infliction_TakeDamage(const float Damage,
-																struct FDamageEvent const& DamageEvent,
-																const AController* EventInstigator,
-																const AActor* DamageCauser);
 	
 	/**
 	* INLSensingEvents Implementation
@@ -88,7 +80,7 @@ public:
 	* INLMovementEvents Implementation
 	*/
 	void Movement_MoveTo(const AActor *goal, const FVector &pos, float range);
-	void Movement_MoveToComplete(FAIRequestID RequestID);
+	void Movement_MoveToComplete(FAIRequestID RequestID, const EPathFollowingResult::Type Result);
 	
 protected:
 

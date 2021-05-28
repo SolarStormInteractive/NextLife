@@ -47,17 +47,6 @@ struct FNLActionResult
 	FString Reason;
 };
 
-/**
- * Base action payload
- */
-UCLASS(Blueprintable)
-class NEXTLIFE_API UNLActionPayload : public UObject
-{
-	GENERATED_BODY()
-public:
-	
-};
-
 //---------------------------------------------------------------------------------------------------------------------
 /**
  * Base Action : An action is something the AI should do to complete a task
@@ -73,17 +62,32 @@ public:
 	// Behaviors control us
 	friend class UNLBehavior;
 
+	// Get the current short description. Could evolve depending on internal action state.
+	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
+	virtual FString GetShortDescription() const
+	{
+		return ActionShortDescription;
+	}
+
+	// Gets the previous action
+	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
+	UNLAction* GetPreviousAction() const
+	{
+		return PreviousAction;
+	}
+
+	// Gets the next action
+	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
+	UNLAction* GetNextAction() const
+	{
+		return NextAction;
+	}
+
 protected:
 
-	// The type of payload expected by this action
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NextLife|Action")
-	TSubclassOf<UNLActionPayload> PayloadClass;
-
-	// This action will only be suspendable from an event IF the suspend request is higher than this priority.
-	// If the event is fired from the top level action, this priority is ignored as the top level event is authority.
-	// If a suspend event is dropped because of this, a verbose log message will be thrown.
-	//UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NextLife|Action")
-	//ENLEventRequestPriority SuspendPriority;
+	// A short description about the action. Used in debug spew so it is best to keep this simple, maybe three words max.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action")
+	FString ActionShortDescription;
 
 	/**
 	* Starts this action and sets its previous action pointer.
@@ -156,14 +160,6 @@ protected:
 	{
 		return NextAction == nullptr;
 	}
-
-	// Adds a sub action and calls OnStart
-	//UFUNCTION(BlueprintCallable, Category = "NextLife|Action")
-	//void AddSubAction(TSubclassOf<UNLAction> subActionClass, UNLActionPayload* payload) {}
-
-	// Removes a sub action and calls OnEnd
-	//UFUNCTION(BlueprintCallable, Category = "NextLife|Action")
-	//void RemoveSubAction(TSubclassOf<UNLAction> subActionClass) {}
 
 	//-----------------------------------------------------------------------------------------
 	/**
@@ -307,11 +303,6 @@ protected:
 	// The action which we started
 	UPROPERTY()
 	UNLAction* NextAction;
-
-	// Actions which run along side us. Can be useful for creating a base action with smaller sub actions.
-	// Sub actions do not accept events.
-	//UPROPERTY()
-	//TArray<UNLAction*> SubActions;
 
 	// The response caused by an event in this action
 	// Can be superseeded by other action event responses of a higher priority
