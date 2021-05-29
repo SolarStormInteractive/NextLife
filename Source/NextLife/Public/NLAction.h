@@ -83,6 +83,50 @@ public:
 		return NextAction;
 	}
 
+	// Determine if an action is below me
+	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
+	bool IsBelowMe(const UNLAction* otherAction) const
+	{
+		if(otherAction == this)
+		{
+			return false;
+		}
+
+		UNLAction* previous = PreviousAction;
+		while(previous)
+		{
+			if(previous == otherAction)
+			{
+				return true;
+			}
+			previous = previous->PreviousAction;
+		}
+
+		return false;
+	}
+
+	// Determine if an action is above me
+	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
+	bool IsAboveMe(const UNLAction* otherAction) const
+	{
+		if(otherAction == this)
+		{
+			return false;
+		}
+
+		UNLAction* next = NextAction;
+		while(next)
+		{
+			if(next == otherAction)
+			{
+				return true;
+			}
+			next = next->NextAction;
+		}
+
+		return false;
+	}
+
 protected:
 
 	// A short description about the action. Used in debug spew so it is best to keep this simple, maybe three words max.
@@ -227,7 +271,8 @@ protected:
 		// By default:
 		// ignore trys (Top level actions should ignore trys for the most part, it means the lower level action doesn't care)
 		// ignore anything but suspends (Changes and Dones could cause large changes to the stack, so don't allow them by default)
-		return eventRequested.Priority > ENLEventRequestPriority::TRY && eventRequested.ChangeRequest == ENLActionChangeType::SUSPEND;
+		return eventRequested.Priority > ENLEventRequestPriority::TRY &&
+			   eventRequested.ChangeRequest == ENLActionChangeType::SUSPEND && eventRequested.IsAppendage;
 	}
 
 	// Continue the action
@@ -291,6 +336,8 @@ protected:
 	{
 		return FNLEventResponse(ENLActionChangeType::DONE, priority, nullptr, reason);
 	}
+
+private:
 
 	// Has this action had its OnStart function called yet?
 	UPROPERTY()
