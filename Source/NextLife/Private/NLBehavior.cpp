@@ -166,9 +166,8 @@ UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result, bool fr
 	if(GetBrainComponent()->LogState && result.Change != ENLActionChangeType::NONE)
 	{
 		SET_WARN_COLOR(COLOR_WHITE);
-		UE_LOG(LogNextLife, Warning, TEXT("%s : %3.2f: %s:%s: "),
+		UE_LOG(LogNextLife, Warning, TEXT("%s : %s:%s: "),
 									  fromRequest ? TEXT("ApplyActionEventResponse") : TEXT("ApplyActionResult"),
-									  GetWorldTimeSeconds(),
 									  *GetBrainComponent()->GetAIOwner()->GetName(), 
 									  *GetName());
 		CLEAR_WARN_COLOR();
@@ -187,8 +186,9 @@ UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result, bool fr
 				if(GetBrainComponent()->LogState)
 				{
 					SET_WARN_COLOR(COLOR_GREEN);
-					UE_LOG(LogNextLife, Warning, TEXT("%s CHANGE to %s"), *Action->GetName(), 
-																		  *result.Action->GetName());
+					UE_LOG(LogNextLife, Warning, TEXT("%s CHANGE to %s : %s"), *Action->GetName(), 
+																		  *result.Action->GetName(),
+																		  *result.Reason);
 					CLEAR_WARN_COLOR();
 				}
 
@@ -196,13 +196,17 @@ UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result, bool fr
 				UNLAction* newAction = NewObject<UNLAction>(this, result.Action);
 				check(newAction);
 
+				// Swap to previous action while we invoke done (so events don't hit the ending action)
+				UNLAction* oldAction = Action;
+				Action = Action->PreviousAction;
+
 				// End the current action
-				Action->InvokeOnDone(newAction);
+				oldAction->InvokeOnDone(newAction);
 
 				// Commit the new action as head
-				UNLAction* previousAction = Action->PreviousAction;
+				newAction->PreviousAction = Action;
+				newAction->PreviousAction->NextAction = newAction;
 				Action = newAction;
-				Action->PreviousAction = previousAction;
 
 				// Start the new action and apply the result which could cause several actions to start via the recursion.
 				const FNLActionResult newActionResult = Action->InvokeOnStart(result.Payload);
@@ -219,8 +223,9 @@ UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result, bool fr
 				if(GetBrainComponent()->LogState)
 				{
 					SET_WARN_COLOR(COLOR_YELLOW);
-					UE_LOG(LogNextLife, Warning, TEXT("%s SUSPEND for %s"), *Action->GetName(), 
-																		    *result.Action->GetName());
+					UE_LOG(LogNextLife, Warning, TEXT("%s SUSPEND for %s : %s"), *Action->GetName(), 
+																		    *result.Action->GetName(),
+																		    *result.Reason);
 					CLEAR_WARN_COLOR();
 				}
 
@@ -233,16 +238,21 @@ UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result, bool fr
 					// Suspended successfully, set the new action as the TOP above the suspended action
 					newAction->PreviousAction = Action;
 					Action = newAction;
+					Action->PreviousAction->NextAction = Action;
 				}
 				else
 				{
-					// Could not suspend this action, it should end
-					Action->InvokeOnDone(newAction);
-					
+					// Swap to previous action while we invoke done (so events don't hit the ending action)
+					UNLAction* oldAction = Action;
+					Action = Action->PreviousAction;
+
+					// End the current action
+					oldAction->InvokeOnDone(newAction);
+
 					// Commit the new action as head
-					UNLAction* previousAction = Action->PreviousAction;
+					newAction->PreviousAction = Action;
+					newAction->PreviousAction->NextAction = newAction;
 					Action = newAction;
-					Action->PreviousAction = previousAction;
 				}
 
 				// Start the new action and apply the result which could cause several actions to start via the recursion.
@@ -254,26 +264,24 @@ UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result, bool fr
 				if(GetBrainComponent()->LogState)
 				{
 					SET_WARN_COLOR(COLOR_RED);
-					UE_LOG(LogNextLife, Warning, TEXT("%s DONE"), *Action->GetName());
+					UE_LOG(LogNextLife, Warning, TEXT("%s DONE : %s"), *Action->GetName(), *result.Reason);
 					CLEAR_WARN_COLOR();
 				}
 
-				UNLAction* resumingAction = Action->PreviousAction;
-				Action->InvokeOnDone(resumingAction);
+				UNLAction* endingAction = Action;
+				Action = Action->PreviousAction;
+				endingAction->InvokeOnDone(Action);
 
-				if(resumingAction)
+				if(Action)
 				{
 					// Resume the action and let it apply an action result
-					UNLAction* endedAction = Action;
-					Action = resumingAction;
 					Action->NextAction = nullptr;
 					
-					const FNLActionResult resumeResult = Action->InvokeOnResume(endedAction);
+					const FNLActionResult resumeResult = Action->InvokeOnResume(endingAction);
 					return ApplyActionResult(resumeResult, fromRequest);
 				}
 
 				// No more actions, this behavior has completed!
-				Action = nullptr;
 				return nullptr;
 			}
 		default:
@@ -341,17 +349,11 @@ bool UNLBehavior::HandleEventResponse(UNLAction* respondingAction, const FName e
 					requestStr = FString::Printf(TEXT("SUSPEND for %s (%s)"), *response.Action->GetName(), *UEnum::GetValueAsString(response.Priority));
 					break;
 				}
-			/*case ENLActionChangeType::TAKE_OVER:
-				{
-					check(response.Action);
-					requestStr = FString::Printf(TEXT("%s TAKE_OVER (%s)"), *response.Action->GetName(), *UEnum::GetValueAsString(response.Priority));
-					break;
-				}*/
 			default:
 				break;
 		}
 		SET_WARN_COLOR(COLOR_CYAN);
-		UE_LOG(LogNextLife, Warning, TEXT("%s:%s %s EVENT '%s' with request %s. %s"), *GetName(),
+		UE_LOG(LogNextLife, Warning, TEXT("%s:%s %s EVENT '%s' with request %s - '%s'"), *GetName(),
 																					  *respondingAction->GetName(),
 																					  *storeAction,
 																					  *eventName.ToString(),
@@ -368,14 +370,22 @@ bool UNLBehavior::HandleEventResponse(UNLAction* respondingAction, const FName e
 */
 UNLAction* UNLBehavior::ApplyPendingEvents()
 {
-	if(!Action->EventResponse.IsNone())
+	while(Action && !Action->EventResponse.IsNone())
 	{
-		// Apply the top level response immediately
+		// Create a new action from the event
 		FNLActionResult newAction;
 		CreateActionResultFromEvent(Action->EventResponse, newAction);
-		Action = ApplyActionResult(newAction, true);
-		// Clear
+
+		// Clear now so if any other events occur from the action result they won't be affected
 		Action->EventResponse = FNLEventResponse();
+
+		// Apply the top level response immediately
+		Action = ApplyActionResult(newAction, true);
+	}
+
+	if(!Action)
+	{
+		return Action;
 	}
 
 	// Check for pending requests from lower actions, determine the highest order request and send it to the top level
@@ -393,26 +403,30 @@ UNLAction* UNLBehavior::ApplyPendingEvents()
 
 		// Clear
 		previousAction->EventResponse = FNLEventResponse();
+		previousAction = previousAction->PreviousAction;
 	}
 
-	// Now if this request is not None request from the top this event action to our requesting action to see if the
-	// above actions agree to it being executed.
 	if(!requestedResponse.IsNone())
 	{
-		if(requestedResponse.IsAppendage && requestedResponse.ChangeRequest == ENLActionChangeType::SUSPEND)
+		if(requestedResponse.IsAppendage)
 		{
-			// Suspend appends means we just want to put the action ontop of the top acton.
-			// Request this of the top action, this suspend it if we can do it.
-			if(Action->OnRequestEvent(requestedResponse, requestingAction))
+			// Appending requests change the top of the stack. Only suspend supported.
+			if(requestedResponse.ChangeRequest == ENLActionChangeType::SUSPEND)
 			{
-				// Now run the suspend normally
-				FNLActionResult newAction;
-				CreateActionResultFromEvent(requestedResponse, newAction);
-				Action = ApplyActionResult(newAction, true);
+				// Suspend appends means we just want to put the action ontop of the top acton.
+				// Request this of the top action, this suspend it if we can do it.
+				if(Action->OnRequestEvent(requestedResponse, requestingAction))
+				{
+					// Now run the suspend normally
+					FNLActionResult newAction;
+					CreateActionResultFromEvent(requestedResponse, newAction);
+					Action = ApplyActionResult(newAction, true);
+				}
 			}
 		}
 		else
 		{
+			// Now if this request is not None, request that this action go through from the top of the action stack down to the requester
 			UNLAction* nextAction = Action;
 			while(nextAction && nextAction != requestingAction)
 			{
@@ -428,11 +442,14 @@ UNLAction* UNLBehavior::ApplyPendingEvents()
 			// action and run the event.
 			if(nextAction == requestingAction)
 			{
-				// Clear all actions above the requesting action
-				requestingAction->NextAction->InvokeOnDone(requestingAction);
-				requestingAction->NextAction = nullptr;
-				// The requesting action has become the top action for now
+				// The requesting action has become the top action for now (this is so events from OnDone don't consider actions about the end)
 				Action = requestingAction;
+				
+				// Clear all actions above the requesting action
+				check(Action->NextAction);
+				Action->NextAction->InvokeOnDone(requestingAction);
+				Action->NextAction = nullptr;
+
 				// Now run the event
 				FNLActionResult newAction;
 				CreateActionResultFromEvent(requestedResponse, newAction);

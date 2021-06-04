@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "NLTypes.h"
+
 // Baseline event sets
 #include "EventSets/NLGeneralEvents.h"
 #include "EventSets/NLSensingEvents.h"
@@ -79,6 +81,16 @@ public:
 		EventsPaused = pausedState;
 	}
 
+	UFUNCTION(BlueprintPure, Category = "NextLife|Behavior")
+	FString GetBehaviorShortName() const
+	{
+		if(!BehaviorShortName.IsEmpty())
+		{
+			return BehaviorShortName;
+		}
+		return GetClass()->GetName();
+	}
+
 	// Returns true if event propagation is currently paused, as in, when an event occurs it is ignored, not pushed through
 	// the actions.
 	UFUNCTION(BlueprintPure, Category = "NextLife|Behavior")
@@ -131,6 +143,10 @@ public:
 	virtual FNLEventResponse Movement_MoveToComplete_Implementation(FAIRequestID RequestID, const EPathFollowingResult::Type Result) override;
 
 protected:
+
+	// A short name for the behavior. Used in the debug spew so it is best to keep this simple and short.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Behavior")
+	FString BehaviorShortName;
 
 	/**
 	 * Applies the current action result to the current TOP action possibly modifying the current set TOP action

@@ -134,6 +134,18 @@ protected:
 	FString ActionShortDescription;
 
 	/**
+	 * Called when this action is about to be serialized (for a save game)
+	 * Useful for setting up save game variables (extra information for when the game is loaded to get things back in order)
+	 */
+	virtual void OnPreSave() {}
+
+	/**
+	 * Called when this action has been loaded from serialized data (for loading a saved game)
+	 * Useful for when things need to be started again after a saved game is loaded (get back on movement course, etc)
+	 */
+	virtual void OnLoaded() {}
+
+	/**
 	* Starts this action and sets its previous action pointer.
 	* This could start a new action to immediately be started which will be reflected in the result.
 	*/

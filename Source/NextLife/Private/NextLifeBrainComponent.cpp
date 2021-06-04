@@ -4,6 +4,8 @@
 #include "NextLifeModule.h"
 #include "NLBehavior.h"
 
+#include "AIController.h"
+
 //---------------------------------------------------------------------------------------------------------------------
 /**
 */
@@ -145,6 +147,23 @@ void UNextLifeBrainComponent::StopLogic(const FString& Reason)
 			}
 		}
 		LogicIsStarted = false;
+
+		if(LogState)
+		{
+			FString aiName = TEXT("Unknown");
+			if(GetAIOwner())
+			{
+				if(GetAIOwner()->GetPawn())
+				{
+					aiName = GetAIOwner()->GetPawn()->GetName();
+				}
+				else
+				{
+					aiName = GetAIOwner()->GetName();
+				}
+			}
+			UE_LOG(LogNextLife, Warning, TEXT("AI '%s' Logic being stopped, reason: %s"), *aiName, *Reason);
+		}
 	}
 }
 
@@ -153,17 +172,7 @@ void UNextLifeBrainComponent::StopLogic(const FString& Reason)
 */
 void UNextLifeBrainComponent::Cleanup()
 {
-	if(LogicIsStarted)
-	{
-		for(UNLBehavior*& behavior : Behaviors)
-		{
-			if(behavior)
-			{
-				behavior->StopBehavior(true);
-			}
-		}
-		LogicIsStarted = false;
-	}
+	StopLogic(TEXT("Normal Cleanup"));
 }
 
 //---------------------------------------------------------------------------------------------------------------------
