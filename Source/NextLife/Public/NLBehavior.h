@@ -72,7 +72,7 @@ public:
 	void BeginBehavior();
 
 	// Run this behavior. Called from the NextLife Brain Component.
-	void RunBehavior(float deltaSeconds);
+	virtual void RunBehavior(float deltaSeconds);
 
 	// Sets all events into a paused state.
 	// This prevents new events from propagating to actions.
@@ -166,8 +166,12 @@ protected:
 	 */
 	class UNLAction* ApplyPendingEvents();
 
+	/**
+	 * Creates an action result from an event response
+	 * Used when applying events
+	 */
 	static void CreateActionResultFromEvent(const FNLEventResponse& response, FNLActionResult& actionResultOut);
-
+	
 	// The current TOP action
 	UPROPERTY(BlueprintReadOnly, Category = "Behavior")
 	class UNLAction* Action;

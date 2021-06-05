@@ -17,16 +17,16 @@ class NEXTLIFE_API UNLActionPayload : public UObject
 /**
  * The different action changes which can occur, including a NONE which means no change (used to move on)
 */
-UENUM()
+UENUM(BlueprintType)
 enum class ENLActionChangeType : uint8
 {
-	// No Change
+	/** No Change */
 	NONE,
-	// Change this action with a new action (this replaces this entry in the stack with a new one)
+	/** Change this action with a new action (this replaces this entry in the stack with a new one) */
 	CHANGE,
-	// Suspend this action for another one
+	/** Suspend this action for another one */
 	SUSPEND,
-	// This action has completed, resume parent action
+	/** This action has completed, resume parent action */
 	DONE,
 };
 
@@ -37,19 +37,43 @@ enum class ENLActionChangeType : uint8
 UENUM(BlueprintType)
 enum class ENLEventRequestPriority : uint8
 {
-	// No priority. Using this as a request priority basically means ignore this request because TRY is the default request priority.
+	/** No priority. Using this as a request priority basically means ignore this request because TRY is the default request priority. */
 	NONE,
-	// Try to accomplish this request
+	/** Try to accomplish this request */
 	TRY,
-	// Try harder to accomplish this request
+	/** Try harder to accomplish this request */
 	IMPORTANT,
-	// Try even harder. If this request has to be thrown out, throw a warning about it.
+	/** Try even harder. If this request has to be thrown out, throw a warning about it. */
 	CRITICAL,
 };
 
 //----------------------------------------------------------------------------------------------------------------------
 /**
+* The different types of suspend behaviors
+*/
+UENUM(BlueprintType)
+enum class ENLSuspendBehavior : uint8
+{
+	/** Normal behavior, suspends from the requesting action which could end the stack above the requesting action. */
+	NORMAL,
+	/** Append, add to the top of the stack */
+	APPEND,
+	/**
+	 * Lets actions above the requesting action which are the same class as the event action take over the payload of the event.
+	 * If no action exists of the class, falls back to NORMAL behavior
+	 */
+	TAKEOVER,
+	/**
+	 * Lets actions above the requesting action which are the same class as the event action take over the payload of the event.
+	 * If no action exists of the class, falls back to APPEND behavior
+	 */
+	TAKEOVER_APPEND,
+};
+
+//----------------------------------------------------------------------------------------------------------------------
+/**
 * An event response structure returned from event implementations
+* Requests changes to the behaviors action stack
 */
 USTRUCT(BlueprintType)
 struct FNLEventResponse
@@ -60,7 +84,7 @@ struct FNLEventResponse
 		: ChangeRequest(ENLActionChangeType::NONE)
 		, Priority(ENLEventRequestPriority::NONE)
 		, Payload(nullptr)
-		, IsAppendage(false)
+		, SuspendBehavior(ENLSuspendBehavior::NORMAL)
 	{}
 
 	FNLEventResponse(ENLActionChangeType changeRequest,
@@ -68,19 +92,25 @@ struct FNLEventResponse
 					 TSubclassOf<class UNLAction> action,
 					 const FString& reason,
 					 class UNLActionPayload* payload = nullptr,
-					 const bool isAppend = false)
+					 const ENLSuspendBehavior suspendBehavior = ENLSuspendBehavior::NORMAL)
 		: ChangeRequest(changeRequest)
 		, Priority(priority)
 		, Action(action)
 		, Payload(payload)
 		, Reason(reason)
-		, IsAppendage(isAppend)
+		, SuspendBehavior(suspendBehavior)
 	{}
 
 	// Does this response contain no request?
 	FORCEINLINE bool IsNone() const
 	{
 		return ChangeRequest == ENLActionChangeType::NONE;
+	}
+
+	// True if this event does not cause destruction to the stack (appends only, no ends)
+	FORCEINLINE bool IsNonDestructive() const
+	{
+		return ChangeRequest == ENLActionChangeType::SUSPEND && SuspendBehavior == ENLSuspendBehavior::APPEND;
 	}
 
 	// The request being made
@@ -107,8 +137,9 @@ struct FNLEventResponse
 	UPROPERTY()
 	FName EventName;
 
-	// Requesting the action be appended onto the top action
-	// Only used for suspend event responses
+	// The behavior used when suspending
+	// This is only used when ChangeRequest is SUSPEND
+	// See ENLSuspendBehavior for details.
 	UPROPERTY()
-	bool IsAppendage;
+	ENLSuspendBehavior SuspendBehavior;
 };

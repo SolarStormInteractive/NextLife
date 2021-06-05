@@ -408,11 +408,56 @@ UNLAction* UNLBehavior::ApplyPendingEvents()
 
 	if(!requestedResponse.IsNone())
 	{
-		if(requestedResponse.IsAppendage)
+		bool useNormalBehavior = true;
+		if(requestedResponse.ChangeRequest == ENLActionChangeType::SUSPEND &&
+			requestedResponse.SuspendBehavior != ENLSuspendBehavior::NORMAL)
 		{
-			// Appending requests change the top of the stack. Only suspend supported.
-			if(requestedResponse.ChangeRequest == ENLActionChangeType::SUSPEND)
+			if(requestedResponse.SuspendBehavior == ENLSuspendBehavior::TAKEOVER ||
+			   requestedResponse.SuspendBehavior == ENLSuspendBehavior::TAKEOVER_APPEND)
 			{
+				// If this allows takeover, check the stack for an action which could take this over
+				UNLAction* nextAction = Action;
+				while(nextAction && nextAction != requestingAction)
+				{
+					if(nextAction->GetClass() == requestedResponse.Action)
+					{
+						if(nextAction->OnRequestTakeover(requestedResponse, requestingAction))
+						{
+							useNormalBehavior = false;
+							
+							// The takeover action has become the top action for now (this is so events from OnDone don't consider actions about to end)
+							Action = nextAction;
+				
+							// Clear all actions above the takeover action
+							check(Action->NextAction);
+							Action->NextAction->InvokeOnDone(Action);
+							Action->NextAction = nullptr;
+							break;
+						}
+					}
+					nextAction = nextAction->PreviousAction;
+				}
+
+				if(useNormalBehavior)
+				{
+					if(requestedResponse.SuspendBehavior == ENLSuspendBehavior::TAKEOVER_APPEND)
+					{
+						// Switch over to an append
+						requestedResponse.SuspendBehavior = ENLSuspendBehavior::APPEND;
+					}
+					else
+					{
+						// Setup the event to be normal
+						requestedResponse.SuspendBehavior = ENLSuspendBehavior::NORMAL;
+					}
+				}
+			}
+
+			if(requestedResponse.SuspendBehavior == ENLSuspendBehavior::APPEND)
+			{
+				// Appends don't backout onto normal behavior
+				useNormalBehavior = false;
+				
 				// Suspend appends means we just want to put the action ontop of the top acton.
 				// Request this of the top action, this suspend it if we can do it.
 				if(Action->OnRequestEvent(requestedResponse, requestingAction))
@@ -424,7 +469,8 @@ UNLAction* UNLBehavior::ApplyPendingEvents()
 				}
 			}
 		}
-		else
+
+		if(useNormalBehavior)
 		{
 			// Now if this request is not None, request that this action go through from the top of the action stack down to the requester
 			UNLAction* nextAction = Action;
@@ -442,7 +488,7 @@ UNLAction* UNLBehavior::ApplyPendingEvents()
 			// action and run the event.
 			if(nextAction == requestingAction)
 			{
-				// The requesting action has become the top action for now (this is so events from OnDone don't consider actions about the end)
+				// The requesting action has become the top action for now (this is so events from OnDone don't consider actions about to end)
 				Action = requestingAction;
 				
 				// Clear all actions above the requesting action
