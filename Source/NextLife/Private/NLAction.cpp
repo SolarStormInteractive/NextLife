@@ -54,12 +54,12 @@ FNLActionResult UNLAction::InvokeOnResume(const UNLAction *resumingFrom)
 //---------------------------------------------------------------------------------------------------------------------
 /**
 */
-void UNLAction::InvokeOnDone(const UNLAction* nextAction)
+void UNLAction::InvokeOnDone(const UNLAction* nextAction, const bool pawnDestruction)
 {
-	OnDone(nextAction);
+	OnDone(nextAction, pawnDestruction);
 	if(NextAction)
 	{
-		NextAction->InvokeOnDone(nextAction);
+		NextAction->InvokeOnDone(nextAction, pawnDestruction);
 		NextAction = nullptr;
 	}
 }

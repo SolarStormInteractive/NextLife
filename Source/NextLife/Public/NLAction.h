@@ -189,7 +189,7 @@ protected:
 	/**
 	* Ends the action and action children and any actions above this action.
 	*/
-	void InvokeOnDone(const UNLAction* nextAction);
+	void InvokeOnDone(const UNLAction* nextAction, const bool pawnDestruction);
 
 	// Gets the pawn which is being controlled by the AI controller which is running NextLife as the AI brain.
 	// If you are getting the pawn owner to cast it to a specific class to get information, perhaps consider using a blackboard instead.
@@ -253,10 +253,12 @@ protected:
 	 * Invoked when an Action is ended for any reason
 	 * Any state changes made to your AIs should be reverted during this call.
 	 * If all actions in the action stack were to end, idealy your AI should be left in a clean state.
+	 * @param pawnDestruction - Is this done occuring because the owner pawn is being destroyed?
+	 *                          If true, GetPawnOwner() will return null during this call.
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category = "NextLife|Action")
-	void OnDone(const UNLAction *nextAction);
-	virtual void OnDone_Implementation(const UNLAction *nextAction)
+	void OnDone(const UNLAction *nextAction, const bool pawnDestruction);
+	virtual void OnDone_Implementation(const UNLAction *nextAction, const bool pawnDestruction)
 	{
 	}
 

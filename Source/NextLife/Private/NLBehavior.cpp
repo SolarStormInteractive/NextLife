@@ -144,7 +144,7 @@ void UNLBehavior::StopBehavior(bool callBehaviorEnded)
 	}
 
 	// End it
-	rootAction->InvokeOnDone(nullptr);
+	rootAction->InvokeOnDone(nullptr, rootAction->GetPawnOwner() == nullptr);
 
 	// GC will get all the actions
 	Action = nullptr;
@@ -201,7 +201,7 @@ UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result, bool fr
 				Action = Action->PreviousAction;
 
 				// End the current action
-				oldAction->InvokeOnDone(newAction);
+				oldAction->InvokeOnDone(newAction, false);
 
 				// Commit the new action as head
 				newAction->PreviousAction = Action;
@@ -247,7 +247,7 @@ UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result, bool fr
 					Action = Action->PreviousAction;
 
 					// End the current action
-					oldAction->InvokeOnDone(newAction);
+					oldAction->InvokeOnDone(newAction, false);
 
 					// Commit the new action as head
 					newAction->PreviousAction = Action;
@@ -270,7 +270,7 @@ UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result, bool fr
 
 				UNLAction* endingAction = Action;
 				Action = Action->PreviousAction;
-				endingAction->InvokeOnDone(Action);
+				endingAction->InvokeOnDone(Action, false);
 
 				if(Action)
 				{
@@ -430,8 +430,12 @@ UNLAction* UNLBehavior::ApplyPendingEvents()
 				
 							// Clear all actions above the takeover action
 							check(Action->NextAction);
-							Action->NextAction->InvokeOnDone(Action);
+							Action->NextAction->InvokeOnDone(Action, false);
+
+							// Resume the takeover action
+							UNLAction* oldAction = Action->NextAction;
 							Action->NextAction = nullptr;
+							Action = ApplyActionResult(Action->InvokeOnResume(oldAction), true);
 							break;
 						}
 					}
@@ -493,7 +497,7 @@ UNLAction* UNLBehavior::ApplyPendingEvents()
 				
 				// Clear all actions above the requesting action
 				check(Action->NextAction);
-				Action->NextAction->InvokeOnDone(requestingAction);
+				Action->NextAction->InvokeOnDone(requestingAction, false);
 				Action->NextAction = nullptr;
 
 				// Now run the event
