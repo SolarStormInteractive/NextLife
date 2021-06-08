@@ -428,14 +428,17 @@ UNLAction* UNLBehavior::ApplyPendingEvents()
 							// The takeover action has become the top action for now (this is so events from OnDone don't consider actions about to end)
 							Action = nextAction;
 				
-							// Clear all actions above the takeover action
-							check(Action->NextAction);
-							Action->NextAction->InvokeOnDone(Action, false);
-
-							// Resume the takeover action
-							UNLAction* oldAction = Action->NextAction;
-							Action->NextAction = nullptr;
-							Action = ApplyActionResult(Action->InvokeOnResume(oldAction), true);
+							// The takeover action could be the current action, in which case, no extra action is required.
+							if(Action->NextAction)
+							{
+								// Clear all actions above the takeover action
+								Action->NextAction->InvokeOnDone(Action, false);
+							
+								// Resume the takeover action
+								UNLAction* oldAction = Action->NextAction;
+								Action->NextAction = nullptr;
+								Action = ApplyActionResult(Action->InvokeOnResume(oldAction), true);
+							}
 							break;
 						}
 					}
