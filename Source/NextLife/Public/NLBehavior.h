@@ -69,7 +69,7 @@ public:
 	bool GetActionStack(TArray<class UNLAction*>& actionStackOut) const;
 
 	// Begins this behavior (creates the initial action and starts it, possibly causing a chain reaction of actions to stack).
-	void BeginBehavior();
+	virtual void BeginBehavior();
 
 	// Run this behavior. Called from the NextLife Brain Component.
 	virtual void RunBehavior(float deltaSeconds);
