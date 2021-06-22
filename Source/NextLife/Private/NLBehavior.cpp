@@ -144,7 +144,12 @@ void UNLBehavior::StopBehavior(bool callBehaviorEnded)
 	}
 
 	// End it
-	rootAction->InvokeOnDone(nullptr, rootAction->GetPawnOwner() == nullptr);
+	// NOTE: OnDone is not called if the owning pawn is gone (important rule, action functons can always rely on the owner pawn being valid)
+	//		 In the case of the pawn being destroyed, OnDone is not called, the action stack is just destroyed.
+	if(rootAction->GetPawnOwner() != nullptr)
+	{
+		rootAction->InvokeOnDone(nullptr);
+	}
 
 	// GC will get all the actions
 	Action = nullptr;
@@ -201,7 +206,7 @@ UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result, bool fr
 				Action = Action->PreviousAction;
 
 				// End the current action
-				oldAction->InvokeOnDone(newAction, false);
+				oldAction->InvokeOnDone(newAction);
 
 				// Commit the new action as head
 				newAction->PreviousAction = Action;
@@ -247,7 +252,7 @@ UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result, bool fr
 					Action = Action->PreviousAction;
 
 					// End the current action
-					oldAction->InvokeOnDone(newAction, false);
+					oldAction->InvokeOnDone(newAction);
 
 					// Commit the new action as head
 					newAction->PreviousAction = Action;
@@ -270,7 +275,7 @@ UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result, bool fr
 
 				UNLAction* endingAction = Action;
 				Action = Action->PreviousAction;
-				endingAction->InvokeOnDone(Action, false);
+				endingAction->InvokeOnDone(Action);
 
 				if(Action)
 				{
@@ -432,7 +437,7 @@ UNLAction* UNLBehavior::ApplyPendingEvents()
 							if(Action->NextAction)
 							{
 								// Clear all actions above the takeover action
-								Action->NextAction->InvokeOnDone(Action, false);
+								Action->NextAction->InvokeOnDone(Action);
 							
 								// Resume the takeover action
 								UNLAction* oldAction = Action->NextAction;
@@ -500,7 +505,7 @@ UNLAction* UNLBehavior::ApplyPendingEvents()
 				
 				// Clear all actions above the requesting action
 				check(Action->NextAction);
-				Action->NextAction->InvokeOnDone(requestingAction, false);
+				Action->NextAction->InvokeOnDone(requestingAction);
 				Action->NextAction = nullptr;
 
 				// Now run the event
