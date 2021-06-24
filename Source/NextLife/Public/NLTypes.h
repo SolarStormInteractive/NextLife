@@ -62,12 +62,12 @@ enum class ENLSuspendBehavior : uint8
 	 * Lets actions above the requesting action which are the same class as the event action take over the payload of the event.
 	 * If no action exists of the class, falls back to NORMAL behavior
 	 */
-	TAKEOVER,
+	//TAKEOVER,
 	/**
 	 * Lets actions above the requesting action which are the same class as the event action take over the payload of the event.
 	 * If no action exists of the class, falls back to APPEND behavior
 	 */
-	TAKEOVER_APPEND,
+	//TAKEOVER_APPEND,
 };
 
 //----------------------------------------------------------------------------------------------------------------------
