@@ -537,7 +537,7 @@ UNLAction* UNLBehavior::ApplyPendingEvents()
 			while(nextAction && nextAction != requestingAction)
 			{
 				// If any action doesn't agree, we cannot use this request
-				if(!Action->OnRequestEvent(requestedResponse, requestingAction))
+				if(!nextAction->OnRequestEvent(requestedResponse, requestingAction))
 				{
 					break;
 				}
