@@ -127,6 +127,40 @@ public:
 		return false;
 	}
 
+	// Gets the pawn which is being controlled by the AI controller which is running NextLife as the AI brain.
+	// If you are getting the pawn owner to cast it to a specific class to get information, perhaps consider using a blackboard instead.
+	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
+	class APawn* GetPawnOwner() const;
+
+	// Gets the AI controller which is running NextLife as the AI brain.
+	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
+	class AAIController* GetAIOwner() const;
+
+	// Get the behavior this action is a part of
+	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
+	class UNLBehavior* GetBehavior() const;
+
+	// Gets the world time associated with the AI being driven by this actions behavior
+	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
+	float GetWorldTimeSeconds() const;
+
+	/**
+	* Gets the currently assigned blackboard component (if one has been assigned in AIController via UseBlackboard)
+	* Blackboards can be useful for storing information in a generic fassion for the AI to use while executing.
+	* Passing information to an AI through a blackboard can generalize your AI routines to be usable by many different pawn types.
+	*/
+	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
+	class UBlackboardComponent* GetBlackboard() const;
+
+	/**
+	* Is this action currently the top action
+	*/
+	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
+	FORCEINLINE bool IsTopAction() const
+	{
+		return NextAction == nullptr;
+	}
+
 protected:
 
 	// A short description about the action. Used in debug spew so it is best to keep this simple, maybe three words max.
@@ -190,40 +224,6 @@ protected:
 	* Ends the action and action children and any actions above this action.
 	*/
 	void InvokeOnDone(const UNLAction* nextAction);
-
-	// Gets the pawn which is being controlled by the AI controller which is running NextLife as the AI brain.
-	// If you are getting the pawn owner to cast it to a specific class to get information, perhaps consider using a blackboard instead.
-	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
-	class APawn* GetPawnOwner() const;
-
-	// Gets the AI controller which is running NextLife as the AI brain.
-	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
-	class AAIController* GetAIOwner() const;
-
-	// Get the behavior this action is a part of
-	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
-	class UNLBehavior* GetBehavior() const;
-
-	// Gets the world time associated with the AI being driven by this actions behavior
-	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
-	float GetWorldTimeSeconds() const;
-
-	/**
-	 * Gets the currently assigned blackboard component (if one has been assigned in AIController via UseBlackboard)
-	 * Blackboards can be useful for storing information in a generic fassion for the AI to use while executing.
-	 * Passing information to an AI through a blackboard can generalize your AI routines to be usable by many different pawn types.
-	 */
-	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
-	class UBlackboardComponent* GetBlackboard() const;
-
-	/**
-	 * Is this action currently the top action
-	 */
-	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
-	FORCEINLINE bool IsTopAction() const
-	{
-		return NextAction == nullptr;
-	}
 
 	/**
 	 * Start the action, the result will be immediately processed which could cause an immediate transition to another action.
