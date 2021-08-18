@@ -60,6 +60,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "NextLife|Behavior")
 	float GetWorldTimeSeconds() const;
 
+	// Call when this behavior has been restored
+	void OnSaveRestored();
+
 	/**
 	 * Puts together the current action stack into an array
 	 * Return true if the stack is valid (Behavior has begun and had an initial action)
@@ -173,10 +176,10 @@ protected:
 	static void CreateActionResultFromEvent(const FNLEventResponse& response, FNLActionResult& actionResultOut);
 	
 	// The current TOP action
-	UPROPERTY(BlueprintReadOnly, Category = "Behavior")
+	UPROPERTY(BlueprintReadOnly, Category = "Behavior", SaveGame)
 	class UNLAction* Action;
 
 	// If paused, events will not be accepted
-	UPROPERTY()
+	UPROPERTY(SaveGame)
 	bool EventsPaused;
 };

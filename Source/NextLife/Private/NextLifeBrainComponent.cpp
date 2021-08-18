@@ -19,6 +19,17 @@ UNextLifeBrainComponent::UNextLifeBrainComponent()
 //---------------------------------------------------------------------------------------------------------------------
 /**
 */
+void UNextLifeBrainComponent::OnSaveRestored()
+{
+	for(UNLBehavior*& behavior : Behaviors)
+	{
+		behavior->OnSaveRestored();
+	}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+/**
+*/
 bool UNextLifeBrainComponent::AddBehavior(TSubclassOf<UNLBehavior> behaviorClass)
 {
 	if(!ActiveBehaviorClasses.Contains(behaviorClass))

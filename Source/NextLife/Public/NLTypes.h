@@ -58,16 +58,6 @@ enum class ENLSuspendBehavior : uint8
 	NORMAL,
 	/** Append, add to the top of the stack */
 	APPEND,
-	/**
-	 * Lets actions above the requesting action which are the same class as the event action take over the payload of the event.
-	 * If no action exists of the class, falls back to NORMAL behavior
-	 */
-	//TAKEOVER,
-	/**
-	 * Lets actions above the requesting action which are the same class as the event action take over the payload of the event.
-	 * If no action exists of the class, falls back to APPEND behavior
-	 */
-	//TAKEOVER_APPEND,
 };
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -114,32 +104,33 @@ struct FNLEventResponse
 	}
 
 	// The request being made
-	UPROPERTY()
+	UPROPERTY(SaveGame)
 	ENLActionChangeType ChangeRequest;
 
 	// The priority of the request (so other requests can maybe superseed this request)
-	UPROPERTY()
+	UPROPERTY(SaveGame)
 	ENLEventRequestPriority Priority;
 
 	// The action associated with this request (Change and Suspend use this)
-	UPROPERTY()
+	// TODO: SAVE / RESTORE
+	UPROPERTY(SaveGame)
 	TSubclassOf<class UNLAction> Action;
 
 	// The payload send with this event
-	UPROPERTY()
+	UPROPERTY(SaveGame)
 	class UNLActionPayload* Payload;
 
 	// The reason for this response
-	UPROPERTY()
+	UPROPERTY(SaveGame)
 	FString Reason;
 
 	// The name of the event which caused this response
-	UPROPERTY()
+	UPROPERTY(SaveGame)
 	FName EventName;
 
 	// The behavior used when suspending
 	// This is only used when ChangeRequest is SUSPEND
 	// See ENLSuspendBehavior for details.
-	UPROPERTY()
+	UPROPERTY(SaveGame)
 	ENLSuspendBehavior SuspendBehavior;
 };

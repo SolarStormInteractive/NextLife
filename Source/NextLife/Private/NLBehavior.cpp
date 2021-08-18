@@ -52,6 +52,23 @@ float UNLBehavior::GetWorldTimeSeconds() const
 //---------------------------------------------------------------------------------------------------------------------
 /**
 */
+void UNLBehavior::OnSaveRestored()
+{
+	UNLAction* curAction = Action;
+	while(curAction)
+	{
+		if(curAction->PreviousAction)
+		{
+			curAction->PreviousAction->NextAction = curAction;
+		}
+		curAction->OnSaveRestored();
+		curAction = curAction->PreviousAction;
+	}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+/**
+*/
 bool UNLBehavior::GetActionStack(TArray<UNLAction*>& actionStackOut) const
 {
 	actionStackOut.Reset(20);
@@ -442,75 +459,6 @@ UNLAction* UNLBehavior::ApplyPendingEvents()
 			}
 			nextAction = nextAction->PreviousAction;
 		}
-
-		// OLD TAKEOVER CONTROL CODE (Probably going away soon)
-		/*if(requestedResponse.ChangeRequest == ENLActionChangeType::SUSPEND &&
-			requestedResponse.SuspendBehavior != ENLSuspendBehavior::NORMAL)
-		{
-			if(requestedResponse.SuspendBehavior == ENLSuspendBehavior::TAKEOVER ||
-			   requestedResponse.SuspendBehavior == ENLSuspendBehavior::TAKEOVER_APPEND)
-			{
-				// If this allows takeover, check the stack for an action which could take this over
-				UNLAction* nextAction = Action;
-				while(nextAction && nextAction != requestingAction)
-				{
-					if(nextAction->GetClass() == requestedResponse.Action)
-					{
-						if(nextAction->OnRequestTakeover(requestedResponse, requestingAction))
-						{
-							useNormalBehavior = false;
-							
-							// The takeover action has become the top action for now (this is so events from OnDone don't consider actions about to end)
-							Action = nextAction;
-				
-							// The takeover action could be the current action, in which case, no extra action is required.
-							if(Action->NextAction)
-							{
-								// Clear all actions above the takeover action
-								Action->NextAction->InvokeOnDone(Action);
-							
-								// Resume the takeover action
-								UNLAction* oldAction = Action->NextAction;
-								Action->NextAction = nullptr;
-								Action = ApplyActionResult(Action->InvokeOnResume(oldAction), true);
-							}
-							break;
-						}
-					}
-					nextAction = nextAction->PreviousAction;
-				}
-
-				if(useNormalBehavior)
-				{
-					if(requestedResponse.SuspendBehavior == ENLSuspendBehavior::TAKEOVER_APPEND)
-					{
-						// Switch over to an append
-						requestedResponse.SuspendBehavior = ENLSuspendBehavior::APPEND;
-					}
-					else
-					{
-						// Setup the event to be normal
-						requestedResponse.SuspendBehavior = ENLSuspendBehavior::NORMAL;
-					}
-				}
-			}
-
-			if(requestedResponse.SuspendBehavior == ENLSuspendBehavior::APPEND)
-			{
-				// Appends don't backout onto normal behavior
-				useNormalBehavior = false;
-				
-				// Suspend appends means we just want to put the action ontop of the top acton.
-				// Request this of the top action, this suspend it if we can do it.
-				if(Action->OnRequestEvent(requestedResponse, requestingAction))
-				{
-					// Now run the suspend normally
-					FNLActionResult newAction;
-					CreateActionResultFromEvent(requestedResponse, newAction);
-					Action = ApplyActionResult(newAction, true);
-				}
-			}
-		}*/
 
 		if(useNormalBehavior &&
 			requestedResponse.ChangeRequest == ENLActionChangeType::SUSPEND &&

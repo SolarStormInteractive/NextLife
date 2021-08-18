@@ -313,6 +313,14 @@ protected:
 	}
 
 	/**
+	* Asks an action to take over an events request.
+	* If true is returned, this action took the payload and the request should be dropped.
+	*/
+	UFUNCTION(BlueprintNativeEvent, Category = "NextLife|Action")
+	void OnSaveRestored();
+	virtual void OnSaveRestored_Implementation() { }
+
+	/**
 	 * Continue, no change
 	 */
 	UFUNCTION(BlueprintPure, Category = "NextLife|Action Result")
@@ -404,19 +412,20 @@ protected:
 private:
 
 	// Has this action had its OnStart function called yet?
-	UPROPERTY()
+	UPROPERTY(SaveGame)
 	bool HasStarted;
 	
 	// The action which started us in the stack that we will resume to when we finish
-	UPROPERTY()
+	UPROPERTY(SaveGame)
 	UNLAction* PreviousAction;
 
 	// The action which we started
+	// This is not saved, only the previous action is. The pointer is fixed up OnSaveRestore.
 	UPROPERTY()
 	UNLAction* NextAction;
 
 	// The response caused by an event in this action
 	// Can be superseeded by other action event responses of a higher priority
-	UPROPERTY()
+	UPROPERTY(SaveGame)
 	FNLEventResponse EventResponse;
 };

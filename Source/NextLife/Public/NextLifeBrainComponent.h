@@ -23,6 +23,10 @@ public:
 	// If true, all behavior state will be logged. Actions starting, updating, changing, suspending, ending, etc...
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Brain")
 	bool LogState;
+
+	// Call when this brain has been restored from a save game (using SPUD or other)
+	UFUNCTION(BlueprintCallable, Category = "NextLife|Brain")
+	void OnSaveRestored();
 	
 	// Add a behavior to this brain
 	UFUNCTION(BlueprintCallable, Category = "NextLife|Brain")
@@ -91,15 +95,17 @@ protected:
 	UFUNCTION()
 	void OnBehaviorComplete(class UNLBehavior* completeBehavior);
 
+	// TODO: SAVE / RESTORE
 	UPROPERTY(BlueprintReadOnly, Category = "NextLife|Brain")
 	TArray<class UNLBehavior*> Behaviors;
 
+	// TODO: SAVE / RESTORE
 	UPROPERTY()
 	TArray<TSubclassOf<class UNLBehavior>> ActiveBehaviorClasses;
 
-	UPROPERTY()
+	UPROPERTY(SaveGame)
 	bool AreBehaviorsPaused;
 
-	UPROPERTY()
+	UPROPERTY(SaveGame)
 	bool LogicIsStarted;
 };
