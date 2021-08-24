@@ -112,7 +112,6 @@ struct FNLEventResponse
 	ENLEventRequestPriority Priority;
 
 	// The action associated with this request (Change and Suspend use this)
-	// TODO: SAVE / RESTORE
 	UPROPERTY(SaveGame)
 	TSubclassOf<class UNLAction> Action;
 

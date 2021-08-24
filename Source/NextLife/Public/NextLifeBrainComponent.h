@@ -98,9 +98,8 @@ protected:
 	// TODO: SAVE / RESTORE
 	UPROPERTY(BlueprintReadOnly, Category = "NextLife|Brain")
 	TArray<class UNLBehavior*> Behaviors;
-
-	// TODO: SAVE / RESTORE
-	UPROPERTY()
+	
+	UPROPERTY(SaveGame)
 	TArray<TSubclassOf<class UNLBehavior>> ActiveBehaviorClasses;
 
 	UPROPERTY(SaveGame)
