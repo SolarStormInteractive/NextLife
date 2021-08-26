@@ -19,7 +19,7 @@ UNLAction::UNLAction()
 //---------------------------------------------------------------------------------------------------------------------
 /**
 */
-FNLActionResult UNLAction::InvokeOnStart(const UNLActionPayload* payload)
+FNLActionResult UNLAction::InvokeOnStart(UNLActionPayload* payload)
 {
 	HasStarted = true;
 	return OnStart(payload);

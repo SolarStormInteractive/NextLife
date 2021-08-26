@@ -183,7 +183,7 @@ protected:
 	* Starts this action and sets its previous action pointer.
 	* This could start a new action to immediately be started which will be reflected in the result.
 	*/
-	FNLActionResult InvokeOnStart(const UNLActionPayload* payload);
+	FNLActionResult InvokeOnStart(UNLActionPayload* payload);
 
 	/**
 	 * The primary action update call steps (each step could occur over multiple frames depending changes in state):
@@ -233,7 +233,7 @@ protected:
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category = "NextLife|Action")
 	FNLActionResult OnStart(const UNLActionPayload* payload);
-	virtual FNLActionResult OnStart_Implementation(const UNLActionPayload* payload)
+	virtual FNLActionResult OnStart_Implementation(UNLActionPayload* payload)
 	{
 		return Continue();
 	}
