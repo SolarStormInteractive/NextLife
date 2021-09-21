@@ -19,17 +19,6 @@ UNextLifeBrainComponent::UNextLifeBrainComponent()
 //---------------------------------------------------------------------------------------------------------------------
 /**
 */
-void UNextLifeBrainComponent::OnSaveRestored()
-{
-	for(UNLBehavior*& behavior : Behaviors)
-	{
-		behavior->OnSaveRestored();
-	}
-}
-
-//---------------------------------------------------------------------------------------------------------------------
-/**
-*/
 bool UNextLifeBrainComponent::AddBehavior(TSubclassOf<UNLBehavior> behaviorClass)
 {
 	if(!ActiveBehaviorClasses.Contains(behaviorClass))
@@ -88,6 +77,11 @@ void UNextLifeBrainComponent::ChooseBehaviors(TArray<int32>& behaviorsOut)
 void UNextLifeBrainComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	if(AreBehaviorsPaused)
+	{
+		return;
+	}
 
 	TArray<int32> behaviorsToRun;
 	ChooseBehaviors(behaviorsToRun);
