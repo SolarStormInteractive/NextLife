@@ -91,10 +91,10 @@ protected:
 	UFUNCTION()
 	void OnBehaviorComplete(class UNLBehavior* completeBehavior);
 	
-	UPROPERTY(BlueprintReadOnly, Category = "NextLife|Brain", Transient)
+	UPROPERTY(BlueprintReadOnly, Category = "NextLife|Brain", SkipSerialization)
 	TArray<class UNLBehavior*> Behaviors;
 	
-	UPROPERTY(Transient)
+	UPROPERTY(SkipSerialization)
 	TArray<TSubclassOf<class UNLBehavior>> ActiveBehaviorClasses;
 
 	UPROPERTY(SaveGame)
