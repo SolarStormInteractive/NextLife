@@ -163,7 +163,8 @@ void UNLBehavior::StopBehavior(bool callBehaviorEnded)
 	// End it
 	// NOTE: OnDone is not called if the owning pawn is gone (important rule, action functons can always rely on the owner pawn being valid)
 	//		 In the case of the pawn being destroyed, OnDone is not called, the action stack is just destroyed.
-	if(rootAction->GetPawnOwner() != nullptr)
+	// NOTE: If unreachable (torn down because of natural garbage collection) then do not perform done either.
+	if(rootAction->GetPawnOwner() != nullptr && !IsUnreachable())
 	{
 		rootAction->InvokeOnDone(nullptr);
 	}
