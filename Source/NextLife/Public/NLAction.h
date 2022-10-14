@@ -92,7 +92,7 @@ public:
 			return false;
 		}
 
-		UNLAction* previous = PreviousAction;
+		const UNLAction* previous = PreviousAction;
 		while(previous)
 		{
 			if(previous == otherAction)
@@ -114,7 +114,7 @@ public:
 			return false;
 		}
 
-		UNLAction* next = NextAction;
+		const UNLAction* next = NextAction;
 		while(next)
 		{
 			if(next == otherAction)
@@ -232,7 +232,7 @@ protected:
 	 * When an action is resumed from another action, expect a OnResume call.
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category = "NextLife|Action")
-	FNLActionResult OnStart(const UNLActionPayload* payload);
+	FNLActionResult OnStart(UNLActionPayload* payload);
 	virtual FNLActionResult OnStart_Implementation(UNLActionPayload* payload)
 	{
 		return Continue();
