@@ -59,31 +59,31 @@ class NEXTLIFE_API UNLAction : public UObject
 public:
     UNLAction();
 
-	// Behaviors control us
+	/// Behaviors control us
 	friend class UNLBehavior;
 
-	// Get the current short description. Could evolve depending on internal action state.
+	/// Get the current short description. Could evolve depending on internal action state.
 	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
 	virtual FString GetShortDescription() const
 	{
 		return ActionShortDescription;
 	}
 
-	// Gets the previous action
+	/// Gets the previous action
 	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
 	UNLAction* GetPreviousAction() const
 	{
 		return PreviousAction;
 	}
 
-	// Gets the next action
+	/// Gets the next action
 	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
 	UNLAction* GetNextAction() const
 	{
 		return NextAction;
 	}
 
-	// Determine if an action is below me
+	/// Determine if an action is below me
 	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
 	bool IsBelowMe(const UNLAction* otherAction) const
 	{
@@ -105,7 +105,29 @@ public:
 		return false;
 	}
 
-	// Determine if an action is above me
+	/// Is an action of a class below this action
+	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
+	bool IsActionClassBelowMe(TSubclassOf<UNLAction> actionClass) const
+	{
+		if(!actionClass)
+		{
+			return false;
+		}
+
+		const UNLAction* previous = PreviousAction;
+		while(previous)
+		{
+			if(previous->GetClass() == actionClass)
+			{
+				return true;
+			}
+			previous = previous->PreviousAction;
+		}
+
+		return false;
+	}
+
+	/// Determine if an action is above me
 	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
 	bool IsAboveMe(const UNLAction* otherAction) const
 	{
@@ -127,20 +149,42 @@ public:
 		return false;
 	}
 
-	// Gets the pawn which is being controlled by the AI controller which is running NextLife as the AI brain.
-	// If you are getting the pawn owner to cast it to a specific class to get information, perhaps consider using a blackboard instead.
+	/// Is an action of a class above this action
+	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
+	bool IsActionClassAboveMe(TSubclassOf<UNLAction> actionClass) const
+	{
+		if(!actionClass)
+		{
+			return false;
+		}
+
+		const UNLAction* next = NextAction;
+		while(next)
+		{
+			if(next->GetClass() == actionClass)
+			{
+				return true;
+			}
+			next = next->NextAction;
+		}
+
+		return false;
+	}
+
+	/// Gets the pawn which is being controlled by the AI controller which is running NextLife as the AI brain.
+	/// If you are getting the pawn owner to cast it to a specific class to get information, perhaps consider using a blackboard instead.
 	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
 	class APawn* GetPawnOwner() const;
 
-	// Gets the AI controller which is running NextLife as the AI brain.
+	/// Gets the AI controller which is running NextLife as the AI brain.
 	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
 	class AAIController* GetAIOwner() const;
 
-	// Get the behavior this action is a part of
+	/// Get the behavior this action is a part of
 	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
 	class UNLBehavior* GetBehavior() const;
 
-	// Gets the world time associated with the AI being driven by this actions behavior
+	/// Gets the world time associated with the AI being driven by this actions behavior
 	UFUNCTION(BlueprintPure, Category = "NextLife|Action")
 	float GetWorldTimeSeconds() const;
 
@@ -163,7 +207,7 @@ public:
 
 protected:
 
-	// A short description about the action. Used in debug spew so it is best to keep this simple, maybe three words max.
+	/// A short description about the action. Used in debug spew so it is best to keep this simple, maybe three words max.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action")
 	FString ActionShortDescription;
 
