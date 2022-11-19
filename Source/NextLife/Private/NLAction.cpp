@@ -61,8 +61,8 @@ void UNLAction::InvokeOnDone(const UNLAction* nextAction)
 	{
 		NextAction->InvokeOnDone(nextAction);
 		NextAction = nullptr;
-		PreviousAction = nullptr;
 	}
+	PreviousAction = nullptr;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -70,7 +70,7 @@ void UNLAction::InvokeOnDone(const UNLAction* nextAction)
 */
 APawn* UNLAction::GetPawnOwner() const
 {
-	AAIController* AIController = GetAIOwner();
+	const AAIController* AIController = GetAIOwner();
 	if(AIController)
 	{
 		return AIController->GetPawn();
@@ -84,10 +84,10 @@ APawn* UNLAction::GetPawnOwner() const
 */
 AAIController* UNLAction::GetAIOwner() const
 {
-	UNLBehavior* myBehavior = GetBehavior();
+	const UNLBehavior* myBehavior = GetBehavior();
 	if(myBehavior)
 	{
-		UNextLifeBrainComponent* brainComponent = myBehavior->GetBrainComponent();
+		const UNextLifeBrainComponent* brainComponent = myBehavior->GetBrainComponent();
 		if(brainComponent)
 		{
 			return brainComponent->GetAIOwner();
@@ -110,7 +110,7 @@ UNLBehavior* UNLAction::GetBehavior() const
 */
 float UNLAction::GetWorldTimeSeconds() const
 {
-	AAIController* AIController = GetAIOwner();
+	const AAIController* AIController = GetAIOwner();
 	if(AIController)
 	{
 		return AIController->GetWorld()->GetTimeSeconds();

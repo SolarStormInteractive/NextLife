@@ -226,10 +226,29 @@ UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result, bool fr
 				// End the current action
 				oldAction->InvokeOnDone(newAction);
 
-				// Commit the new action as head
+				// Ensure that the previous actions would accept being suspended, otherwise end them to
+				while(Action && !Action->InvokeOnSuspend(newAction))
+				{
+					UNLAction* previousAction = Action->PreviousAction;
+					// End this previous action
+					Action->InvokeOnDone(newAction);
+					// Iterate to the next previous in line
+					Action = previousAction;
+					if(Action)
+					{
+						// Clear the next action which we just ended
+						Action->NextAction = nullptr;
+					}
+				}
+				
+				// Put the new action as the head
 				newAction->PreviousAction = Action;
-				newAction->PreviousAction->NextAction = newAction;
 				Action = newAction;
+				// If there is still a previous action set its next to us
+				if(Action->PreviousAction)
+				{
+					Action->PreviousAction->NextAction = Action;
+				}
 
 				// Start the new action and apply the result which could cause several actions to start via the recursion.
 				const FNLActionResult newActionResult = Action->InvokeOnStart(result.Payload);
@@ -256,26 +275,28 @@ UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result, bool fr
 				UNLAction* newAction = NewObject<UNLAction>(this, result.Action);
 				check(newAction);
 
-				if(Action->InvokeOnSuspend(newAction))
+				// Suspend actions underneath until an action accepts the suspend
+				while(Action && !Action->InvokeOnSuspend(newAction))
 				{
-					// Suspended successfully, set the new action as the TOP above the suspended action
-					newAction->PreviousAction = Action;
-					Action = newAction;
-					Action->PreviousAction->NextAction = Action;
+					UNLAction* previousAction = Action->PreviousAction;
+					// End this previous action
+					Action->InvokeOnDone(newAction);
+					// Iterate to the next previous in line
+					Action = previousAction;
+					if(Action)
+					{
+						// Clear the next action which we just ended
+						Action->NextAction = nullptr;
+					}
 				}
-				else
+
+				// Put the new action as the head
+				newAction->PreviousAction = Action;
+				Action = newAction;
+				// If there is still a previous action set its next to us
+				if(Action->PreviousAction)
 				{
-					// Swap to previous action while we invoke done (so events don't hit the ending action)
-					UNLAction* oldAction = Action;
-					Action = Action->PreviousAction;
-
-					// End the current action
-					oldAction->InvokeOnDone(newAction);
-
-					// Commit the new action as head
-					newAction->PreviousAction = Action;
-					newAction->PreviousAction->NextAction = newAction;
-					Action = newAction;
+					Action->PreviousAction->NextAction = Action;
 				}
 
 				// Start the new action and apply the result which could cause several actions to start via the recursion.
