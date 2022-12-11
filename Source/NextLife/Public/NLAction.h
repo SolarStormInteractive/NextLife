@@ -117,7 +117,7 @@ public:
 		const UNLAction* previous = PreviousAction;
 		while(previous)
 		{
-			if(previous->GetClass() == actionClass)
+			if(previous->GetClass()->IsChildOf(actionClass))
 			{
 				return true;
 			}
@@ -161,7 +161,7 @@ public:
 		const UNLAction* next = NextAction;
 		while(next)
 		{
-			if(next->GetClass() == actionClass)
+			if(next->GetClass()->IsChildOf(actionClass))
 			{
 				return true;
 			}
@@ -347,10 +347,11 @@ protected:
 	/**
 	 * Asks an action to take over an events request.
 	 * If true is returned, this action took the payload and the request should be dropped.
+	 * If you want this takeover to also take over the action stack (make this action the current action finishing actions above it) set keepChildActions to false.
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category = "NextLife|Action")
-	bool OnRequestTakeover(const FNLEventResponse &eventRequested, UNLAction* requester);
-	virtual bool OnRequestTakeover_Implementation(const FNLEventResponse &eventRequested, UNLAction* requester)
+	bool OnRequestTakeover(const FNLEventResponse &eventRequested, UNLAction* requester, bool& keepChildActions);
+	virtual bool OnRequestTakeover_Implementation(const FNLEventResponse &eventRequested, UNLAction* requester, bool& keepChildActions)
 	{
 		// By default no takeovers are accepted.
 		return false;

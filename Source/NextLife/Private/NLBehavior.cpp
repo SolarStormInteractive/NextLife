@@ -458,24 +458,29 @@ UNLAction* UNLBehavior::ApplyPendingEvents()
 		UNLAction* nextAction = Action;
 		while(nextAction && nextAction != requestingAction)
 		{
+			bool keepChildActions = true;
 			if(nextAction->GetClass() == requestedResponse.Action &&
-				nextAction->OnRequestTakeover(requestedResponse, requestingAction))
+				nextAction->OnRequestTakeover(requestedResponse, requestingAction, keepChildActions))
 			{
 				useNormalBehavior = false;
-						
-				// The takeover action has become the top action for now (this is so events from OnDone don't consider actions about to end)
-				Action = nextAction;
-			
-				// The takeover action could be the current action, in which case, no extra action is required.
-				if(Action->NextAction)
+
+				// The takeover action can request the current above actions stay in place
+				if(!keepChildActions)
 				{
-					// Clear all actions above the takeover action
-					Action->NextAction->InvokeOnDone(Action);
+					// The takeover action has become the top action for now (this is so events from OnDone don't consider actions about to end)
+					Action = nextAction;
+			
+					// The takeover action could be the current action, in which case, no extra action is required.
+					if(Action->NextAction)
+					{
+						// Clear all actions above the takeover action
+						Action->NextAction->InvokeOnDone(Action);
 						
-					// Resume the takeover action
-					UNLAction* oldAction = Action->NextAction;
-					Action->NextAction = nullptr;
-					Action = ApplyActionResult(Action->InvokeOnResume(oldAction), true);
+						// Resume the takeover action
+						UNLAction* oldAction = Action->NextAction;
+						Action->NextAction = nullptr;
+						Action = ApplyActionResult(Action->InvokeOnResume(oldAction), true);
+					}
 				}
 				break;
 			}
@@ -530,6 +535,11 @@ UNLAction* UNLBehavior::ApplyPendingEvents()
 				FNLActionResult newAction;
 				CreateActionResultFromEvent(requestedResponse, newAction);
 				Action = ApplyActionResult(newAction, true);
+			}
+			else if(requestedResponse.Priority > ENLEventRequestPriority::TRY)
+			{
+				// Nobody accepted the action, give it back to the owner to try again later if it is important
+				requestingAction->EventResponse = requestedResponse;
 			}
 		}
 	}
