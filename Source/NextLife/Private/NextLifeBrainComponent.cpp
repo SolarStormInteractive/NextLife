@@ -74,10 +74,10 @@ void UNextLifeBrainComponent::ChooseBehaviors(TArray<int32>& behaviorsOut)
 //---------------------------------------------------------------------------------------------------------------------
 /**
 */
-void UNextLifeBrainComponent::GetCurrentActiveBehaviors(TArray<const UNLBehavior*>& behaviorsOut) const
+void UNextLifeBrainComponent::GetCurrentActiveBehaviors(TArray<UNLBehavior*>& behaviorsOut) const
 {
 	behaviorsOut.Reset();
-	for(const UNLBehavior* behavior : Behaviors)
+	for(UNLBehavior* behavior : Behaviors)
 	{
 		if(behavior && behavior->HasBehaviorBegun())
 		{

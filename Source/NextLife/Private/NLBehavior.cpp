@@ -144,7 +144,7 @@ void UNLBehavior::RunBehavior(float deltaSeconds)
 //---------------------------------------------------------------------------------------------------------------------
 /**
 */
-const UNLAction* UNLBehavior::GetActionOfClass(TSubclassOf<UNLAction> actionClass) const
+UNLAction* UNLBehavior::GetActionOfClass(TSubclassOf<UNLAction> actionClass) const
 {
 	if(!Action)
 	{
@@ -153,7 +153,7 @@ const UNLAction* UNLBehavior::GetActionOfClass(TSubclassOf<UNLAction> actionClas
 
 	TArray<UNLAction*> actionStackOut;
 	GetActionStack(actionStackOut);
-	for(const UNLAction* action : actionStackOut)
+	for(UNLAction* action : actionStackOut)
 	{
 		if(action && action->GetClass()->IsChildOf(actionClass))
 		{

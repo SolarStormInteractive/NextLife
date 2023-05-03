@@ -111,13 +111,13 @@ public:
 
 	// Returns the 
 	UFUNCTION(BlueprintPure, Category = "NextLife|Behavior")
-	FORCEINLINE const UNLAction* GetAction() const
+	FORCEINLINE UNLAction* GetAction() const
 	{
 		return Action;
 	}
 
 	UFUNCTION(BlueprintPure, Category = "NextLife|Behavior")
-	const UNLAction* GetActionOfClass(TSubclassOf<UNLAction> actionClass) const;
+	UNLAction* GetActionOfClass(TSubclassOf<UNLAction> actionClass) const;
 
 	/**
 	 * Stops the behavior. Tears down the action stack gracefully by ending each action. Acts like the behavior ended if callBehaviorEnded is true.
