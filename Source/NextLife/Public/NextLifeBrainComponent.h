@@ -36,6 +36,9 @@ public:
 	bool ShouldChooseBehavior(class UNLBehavior* behaviorToAssess);
 	virtual bool ShouldChooseBehavior_Implementation(class UNLBehavior* behaviorToAssess) { return true; }
 
+	UFUNCTION(BlueprintCallable, Category = "NextLife|Brain")
+	void GetCurrentActiveBehaviors(TArray<const class UNLBehavior*>& behaviorsOut) const;
+
 	// Ticks all behaviors currently active
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 

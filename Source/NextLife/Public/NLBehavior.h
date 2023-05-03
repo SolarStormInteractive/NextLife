@@ -109,6 +109,16 @@ public:
 		return Action != nullptr;
 	}
 
+	// Returns the 
+	UFUNCTION(BlueprintPure, Category = "NextLife|Behavior")
+	FORCEINLINE const UNLAction* GetAction() const
+	{
+		return Action;
+	}
+
+	UFUNCTION(BlueprintPure, Category = "NextLife|Behavior")
+	const UNLAction* GetActionOfClass(TSubclassOf<UNLAction> actionClass) const;
+
 	/**
 	 * Stops the behavior. Tears down the action stack gracefully by ending each action. Acts like the behavior ended if callBehaviorEnded is true.
 	 * @param callBehaviorEnded - Should this call fire the OnBehaviorEnded event?
@@ -176,7 +186,7 @@ protected:
 	static void CreateActionResultFromEvent(const FNLEventResponse& response, FNLActionResult& actionResultOut);
 	
 	// The current TOP action
-	UPROPERTY(BlueprintReadOnly, Category = "Behavior", SaveGame)
+	UPROPERTY(SaveGame) // BlueprintReadOnly, Category = "Behavior", 
 	class UNLAction* Action;
 
 	// If paused, events will not be accepted

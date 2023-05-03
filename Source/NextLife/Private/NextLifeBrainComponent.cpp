@@ -74,6 +74,21 @@ void UNextLifeBrainComponent::ChooseBehaviors(TArray<int32>& behaviorsOut)
 //---------------------------------------------------------------------------------------------------------------------
 /**
 */
+void UNextLifeBrainComponent::GetCurrentActiveBehaviors(TArray<const UNLBehavior*>& behaviorsOut) const
+{
+	behaviorsOut.Reset();
+	for(const UNLBehavior* behavior : Behaviors)
+	{
+		if(behavior && behavior->HasBehaviorBegun())
+		{
+			behaviorsOut.Add(behavior);
+		}
+	}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+/**
+*/
 void UNextLifeBrainComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);

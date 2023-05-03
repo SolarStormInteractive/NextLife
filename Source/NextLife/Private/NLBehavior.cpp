@@ -144,6 +144,29 @@ void UNLBehavior::RunBehavior(float deltaSeconds)
 //---------------------------------------------------------------------------------------------------------------------
 /**
 */
+const UNLAction* UNLBehavior::GetActionOfClass(TSubclassOf<UNLAction> actionClass) const
+{
+	if(!Action)
+	{
+		return nullptr;
+	}
+
+	TArray<UNLAction*> actionStackOut;
+	GetActionStack(actionStackOut);
+	for(const UNLAction* action : actionStackOut)
+	{
+		if(action && action->GetClass()->IsChildOf(actionClass))
+		{
+			return action;
+		}
+	}
+
+	return nullptr;
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+/**
+*/
 void UNLBehavior::StopBehavior(bool callBehaviorEnded)
 {
 	if(!Action || !Action->HasStarted)
