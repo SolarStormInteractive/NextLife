@@ -206,7 +206,11 @@ void UNLBehavior::StopBehavior(bool callBehaviorEnded)
 */
 UNLAction* UNLBehavior::ApplyActionResult(const FNLActionResult& result, bool fromRequest)
 {
-	checkf(Action, TEXT("ApplyActionResult should not be made without a valid action stack!"));
+	//checkf(Action, TEXT("ApplyActionResult should not be made without a valid action stack!"));
+	if(!Action)
+	{
+		return nullptr;
+	}
 	checkf(!Action->NextAction, TEXT("The TOP action should not have a NextAction set, something bad happened"));
 	
 	if(GetBrainComponent()->LogState && result.Change != ENLActionChangeType::NONE)
