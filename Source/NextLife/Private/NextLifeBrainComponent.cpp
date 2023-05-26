@@ -93,7 +93,7 @@ void UNextLifeBrainComponent::TickComponent(float DeltaTime, ELevelTick TickType
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	if(AreBehaviorsPaused)
+	if(AreBehaviorsPaused || !LogicIsStarted)
 	{
 		return;
 	}
