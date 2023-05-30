@@ -98,9 +98,19 @@ struct FNLEventResponse
 	}
 
 	// True if this event does not cause destruction to the stack (appends only, no ends)
-	FORCEINLINE bool IsNonDestructive() const
+	FORCEINLINE bool IsNonDestructive(const bool hasNoNextAction) const
 	{
-		return ChangeRequest == ENLActionChangeType::SUSPEND && SuspendBehavior == ENLSuspendBehavior::APPEND;
+		if(ChangeRequest != ENLActionChangeType::SUSPEND)
+		{
+			return false;
+		}
+
+		if(SuspendBehavior == ENLSuspendBehavior::APPEND)
+		{
+			return true;
+		}
+		
+		return hasNoNextAction;
 	}
 
 	// The request being made

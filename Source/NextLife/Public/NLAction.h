@@ -341,7 +341,7 @@ protected:
 		// ignore trys (Top level actions should ignore trys for the most part, it means the lower level action doesn't care).
 		// ignore anything but suspends (Changes and Dones could cause large changes to the stack, so don't allow them by default).
 		// and the suspend should be an appendage (so the request won't remove large parts of the stack).
-		return eventRequested.Priority > ENLEventRequestPriority::TRY && eventRequested.IsNonDestructive();
+		return eventRequested.Priority > ENLEventRequestPriority::TRY && eventRequested.IsNonDestructive(requester->GetNextAction() == nullptr);
 	}
 
 	/**
