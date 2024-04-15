@@ -109,7 +109,7 @@ public:
 		return Action != nullptr;
 	}
 
-	// Returns the 
+	// Returns the top level action on the action stack
 	UFUNCTION(BlueprintPure, Category = "NextLife|Behavior")
 	FORCEINLINE UNLAction* GetAction() const
 	{
